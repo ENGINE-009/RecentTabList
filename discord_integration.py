@@ -130,9 +130,12 @@ class DiscordNotifier:
     
     def send_record_approved_notification(self, record_data):
         """Send notification for approved record (non-blocking)"""
+        # Future level runs give no points, so they get their own wording and no points field
+        is_future_run = record_data.get('points_earned') is None
         embed = {
-            "title": "✅ Record Approved",
-            "description": "A record has been approved and added to the leaderboard",
+            "title": "✅ Future Level Run Approved" if is_future_run else "✅ Record Approved",
+            "description": ("A future level run has been approved and put on the list" if is_future_run
+                            else "A record has been approved and added to the leaderboard"),
             "color": 1096065,  # Green color (0x10b981)
             "timestamp": datetime.utcnow().isoformat(),
             "fields": [
@@ -150,18 +153,19 @@ class DiscordNotifier:
                     "name": "Progress",
                     "value": f"{record_data.get('progress', 0)}%",
                     "inline": True
-                },
-                {
-                    "name": "Points Earned",
-                    "value": f"{record_data.get('points_earned', 0)} pts",
-                    "inline": True
                 }
             ],
             "footer": {
                 "text": "RTL Admin Notification System"
             }
         }
-        
+        if not is_future_run:
+            embed["fields"].append({
+                "name": "Points Earned",
+                "value": f"{record_data.get('points_earned', 0)} pts",
+                "inline": True
+            })
+
         # Send webhook directly (no async needed)
         try:
             self.send_webhook(embed)
@@ -257,7 +261,7 @@ class DiscordNotifier:
         # Add details if provided
         if details:
             embed["fields"].append({
-                "name": "📝 Details",
+                "name": "Details",
                 "value": details[:1000],  # Limit to 1000 chars
                 "inline": False
             })
@@ -301,8 +305,9 @@ def notify_record_submitted(username, level_name, progress, video_url, comments=
         import traceback
         traceback.print_exc()
 
-def notify_record_approved(username, level_name, progress, points_earned):
-    """Convenience function to notify about approved record"""
+def notify_record_approved(username, level_name, progress, points_earned=None):
+    """Convenience function to notify about approved record.
+    points_earned=None means a future level run, which gives no points."""
     record_data = {
         'username': username,
         'level_name': level_name,
@@ -328,9 +333,13 @@ def notify_record_approved(username, level_name, progress, points_earned):
             from main import mongo_db
             user = mongo_db.users.find_one({"username": username})
             if user and user.get('discord_id'):
-                dm_message = f"**Record Approved!**\n\n"
-                dm_message += f"Your {progress}% record on **{level_name}** has been approved!\n"
-                dm_message += f"You earned **{points_earned} points**! 🏆\n\n"
+                if points_earned is None:
+                    dm_message = f"**Run Approved!**\n\n"
+                    dm_message += f"Your {progress}% run on **{level_name}** has been approved and put on the list!\n\n"
+                else:
+                    dm_message = f"**Record Approved!**\n\n"
+                    dm_message += f"Your {progress}% record on **{level_name}** has been approved!\n"
+                    dm_message += f"You earned **{points_earned} points**! 🏆\n\n"
                 dm_message += f"Keep up the great work!"
                 
                 success = send_dm_to_user(user['discord_id'], dm_message)

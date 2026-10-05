@@ -1,4 +1,4 @@
-﻿from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, Response
+﻿from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, Response, g, has_request_context
 from pymongo import MongoClient
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
@@ -1760,6 +1760,31 @@ def get_top10_pushout_info(new_position):
         print(f"Error getting top 10 pushout info: {e}")
         return None
 
+CONSOLE_USERNAME = 'ENGINE'
+
+
+def can_use_console():
+    """The console belongs to one account, checked against the database."""
+    if 'user_id' not in session:
+        return False
+    user = mongo_db.users.find_one({"_id": session['user_id']}, {"username": 1})
+    return bool(user) and user.get('username') == CONSOLE_USERNAME
+
+
+def console_only(view):
+    """Silently send everyone but the console account to the admin panel,
+    and keep what is done in the console out of the Discord admin feed."""
+    from functools import wraps
+
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if not can_use_console():
+            return redirect(url_for('admin'))
+        g.console_action = True
+        return view(*args, **kwargs)
+    return wrapper
+
+
 def log_admin_action(admin_username, action, details=""):
     """Log admin actions to database and Discord"""
     try:
@@ -1775,7 +1800,9 @@ def log_admin_action(admin_username, action, details=""):
             print(f"Error logging to database: {e}")
         
         # Send Discord notification using the new system
-        if DISCORD_AVAILABLE:
+        if has_request_context() and g.get('console_action'):
+            pass  # console actions are logged to the database only
+        elif DISCORD_AVAILABLE:
             try:
                 notify_admin_action(admin_username, action, details)
             except Exception as e:
@@ -2128,7 +2155,14 @@ def admin_records():
     has_prev = page > 1
     has_next = page < total_pages
     
-    return render_template('admin/records.html', 
+    future_runs = get_future_runs_with_details(status=None if status_filter == 'all' else status_filter, limit=200)
+    if username_filter:
+        future_runs = [r for r in future_runs if username_filter.lower() in r['user']['username'].lower()]
+    if level_filter:
+        future_runs = [r for r in future_runs if level_filter.lower() in r['future_level']['name'].lower()]
+
+    return render_template('admin/records.html',
+                         future_runs=future_runs,
                          records=records,
                          total_records=total_records,
                          page=page,
@@ -7184,9 +7218,14 @@ def submit_future_run():
             return redirect(url_for('submit_record'))
         
         # Check if future level exists
-        future_level = mongo_db.future_levels.find_one({"_id": level_id}, {"name": 1, "creator": 1, "position": 1})
+        future_level = mongo_db.future_levels.find_one({"_id": level_id}, {"name": 1, "creator": 1, "position": 1, "min_percentage": 1})
         if not future_level:
             flash('Selected future level does not exist', 'danger')
+            return redirect(url_for('submit_record'))
+
+        min_progress = future_level.get('min_percentage') or 1
+        if progress < min_progress:
+            flash(f'You need at least {min_progress}% to submit a run on {future_level["name"]}', 'danger')
             return redirect(url_for('submit_record'))
         
         # Check for profanity in comments if provided
@@ -8130,25 +8169,22 @@ def get_pending_records_with_details():
     return pending_records
 
 
-def get_pending_future_runs():
-    """Pending future level runs with their user and future level attached."""
-    raw_pending = list(mongo_db.future_runs.find({"status": "pending"}).sort("date_submitted", -1))
-    if not raw_pending:
+def get_future_runs_with_details(status=None, limit=0):
+    """Future level runs (newest first) with their user and future level attached.
+    Runs whose user or level was deleted still show up, so they can be cleaned out."""
+    query = {"status": status} if status else {}
+    runs = list(mongo_db.future_runs.find(query).sort("date_submitted", -1).limit(limit))
+    if not runs:
         return []
-    user_ids = list({r["user_id"] for r in raw_pending if "user_id" in r})
-    level_ids = list({r["future_level_id"] for r in raw_pending if "future_level_id" in r})
+    user_ids = list({r["user_id"] for r in runs if "user_id" in r})
+    level_ids = list({r["future_level_id"] for r in runs if "future_level_id" in r})
     users_map = {u["_id"]: u for u in mongo_db.users.find({"_id": {"$in": user_ids}}, {"username": 1})}
     levels_map = {l["_id"]: l for l in mongo_db.future_levels.find(
         {"_id": {"$in": level_ids}}, {"name": 1, "creator": 1, "position": 1})}
-    pending_runs = []
-    for r in raw_pending:
-        user = users_map.get(r.get("user_id"))
-        level = levels_map.get(r.get("future_level_id"))
-        if user and level:
-            r["user"] = user
-            r["future_level"] = level
-            pending_runs.append(r)
-    return pending_runs
+    for r in runs:
+        r["user"] = users_map.get(r.get("user_id")) or {"username": "(deleted user)"}
+        r["future_level"] = levels_map.get(r.get("future_level_id")) or {"name": "(deleted level)", "creator": "", "position": None}
+    return runs
 
 
 @app.route('/admin', methods=['GET', 'POST'])
@@ -8273,7 +8309,7 @@ def admin():
         print(f"Error generating admin stats: {e}")
     
     return render_template('admin/index.html', pending_records=pending_records, stats=stats,
-                           pending_future_runs=get_pending_future_runs())
+                           pending_future_runs=get_future_runs_with_details(status='pending'))
 
 @app.route('/admin/verifications')
 def admin_verifications():
@@ -9024,6 +9060,7 @@ def check_for_duplicate_levels():
 
 
 @app.route('/admin/console')
+@console_only
 def admin_console():
     """Admin Console"""
     if 'user_id' not in session:
@@ -9080,6 +9117,7 @@ def admin_console():
     return render_template('admin/console.html', stats=stats)
 
 @app.route('/admin/console/execute', methods=['POST'])
+@console_only
 def admin_console_execute():
     """Execute console commands - Admin only"""
     if 'user_id' not in session:
@@ -9869,6 +9907,7 @@ def randomize_level_positions(levels):
 
 
 @app.route('/admin/make_head_admin', methods=['POST'])
+@console_only
 def admin_make_head_admin():
     """Make a user a head admin - Now accessible to regular admins too"""
     if 'user_id' not in session:
@@ -9903,6 +9942,7 @@ def admin_make_head_admin():
     return redirect(url_for('admin_console'))
 
 @app.route('/admin/remove_head_admin', methods=['POST'])
+@console_only
 def admin_remove_head_admin():
     """Remove head admin status from a user - Now accessible to regular admins too"""
     if 'user_id' not in session:
@@ -9942,6 +9982,7 @@ def admin_remove_head_admin():
     return redirect(url_for('admin_console'))
 
 @app.route('/admin/demote_admin', methods=['POST'])
+@console_only
 def admin_demote_admin():
     """Demote an admin to regular user - Now accessible to regular admins too"""
     if 'user_id' not in session:
@@ -11132,6 +11173,7 @@ def admin_users():
 
 
 @app.route('/admin/reset_user_password', methods=['POST'])
+@console_only
 def admin_reset_user_password():
     """Force reset a user's password - Admin only"""
     if 'user_id' not in session or not session.get('is_admin'):
@@ -11816,6 +11858,14 @@ def _future_thumbnail_fields(thumbnail_type, thumbnail_url):
     }
 
 
+def _future_min_percentage_from_form():
+    """Minimum progress needed to submit a run on a future level (1-100, default 1)."""
+    try:
+        return max(1, min(100, int(request.form.get('min_percentage') or 1)))
+    except ValueError:
+        return 1
+
+
 def _future_level_id_from_form():
     """Future level _id from the form's level_id field (int or ObjectId), or None."""
     level_id_str = request.form.get('level_id', '')
@@ -11878,6 +11928,7 @@ def admin_add_future_level():
         "description": request.form.get('description', '').strip(),
         "difficulty": difficulty,
         "position": position,
+        "min_percentage": _future_min_percentage_from_form(),
         "date_added": datetime.now(timezone.utc),
         **_future_thumbnail_fields(thumbnail_type, thumbnail_url)
     })
@@ -11948,7 +11999,8 @@ def admin_edit_future_level():
         "video_url": request.form.get('video_url', '').strip(),
         "description": request.form.get('description', '').strip(),
         "difficulty": difficulty,
-        "position": new_position
+        "position": new_position,
+        "min_percentage": _future_min_percentage_from_form()
     }
 
     thumbnail_type, thumbnail_url = _thumbnail_from_form()
@@ -12042,7 +12094,7 @@ def admin_future_runs():
         return redirect(url_for('index'))
     
     try:
-        runs = get_pending_future_runs()
+        runs = get_future_runs_with_details(status='pending')
         
         return render_template('admin/future_runs.html', runs=runs)
         
@@ -12050,162 +12102,154 @@ def admin_future_runs():
         flash(f'Error loading future run submissions: {str(e)}', 'danger')
         return redirect(url_for('admin'))
 
+def _load_future_run(run_id):
+    """A future run with its user and future level (either may be None), or None if the run is gone."""
+    try:
+        run = mongo_db.future_runs.find_one({"_id": ObjectId(run_id)})
+    except (TypeError, InvalidId):
+        run = None
+    if run:
+        run['user'] = mongo_db.users.find_one({"_id": run.get('user_id')}, {"username": 1})
+        run['future_level'] = mongo_db.future_levels.find_one({"_id": run.get('future_level_id')}, {"name": 1})
+    return run
+
+
+def _remove_run_from_future_level(run):
+    """Take an approved run back off its future level's public run list."""
+    mongo_db.future_levels.update_one(
+        {"_id": run.get('future_level_id')},
+        {"$pull": {"runs": {"user_id": run.get('user_id'), "date_submitted": run.get('date_submitted')}}}
+    )
+
+
+def _future_run_label(run):
+    username = run['user']['username'] if run.get('user') else '(deleted user)'
+    level_name = run['future_level']['name'] if run.get('future_level') else '(deleted level)'
+    return username, level_name
+
+
 @app.route('/admin/approve_future_run/<run_id>', methods=['POST'])
 def admin_approve_future_run(run_id):
     """Approve a future level run submission"""
     if 'user_id' not in session or not session.get('is_admin'):
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
-    
+
+    back = redirect(request.referrer or url_for('admin_future_runs'))
     try:
-        run_oid = ObjectId(run_id)
-        
-        # Get the run submission with level and user info
-        run = mongo_db.future_runs.aggregate([
-            {"$match": {"_id": run_oid}},
-            {"$lookup": {
-                "from": "users",
-                "localField": "user_id",
-                "foreignField": "_id",
-                "as": "user"
-            }},
-            {"$unwind": "$user"},
-            {"$lookup": {
-                "from": "future_levels",
-                "localField": "future_level_id",
-                "foreignField": "_id",
-                "as": "future_level"
-            }},
-            {"$unwind": "$future_level"}
-        ]).next()
-        
+        run = _load_future_run(run_id)
         if not run:
             flash('Future run submission not found', 'danger')
-            return redirect(request.referrer or url_for('admin_future_runs'))
-        
-        # Add run to the future level's runs array
-        future_level_id = run['future_level_id']
-        new_run_record = {
-            "user_id": run['user_id'],
-            "username": run['user']['username'],
-            "progress": run['progress'],
-            "video_url": run['video_url'],
-            "comments": run.get('comments', ''),
-            "date_submitted": run['date_submitted'],
-            "approved_date": datetime.now(timezone.utc)
-        }
-        
-        # Add to future level's runs array
+            return back
+        if run.get('status') == 'approved':
+            flash('This future run is already approved', 'warning')
+            return back
+        if not run['user'] or not run['future_level']:
+            flash('This run cannot be approved because its user or future level was deleted', 'danger')
+            return back
+
+        username, level_name = _future_run_label(run)
+        now = datetime.now(timezone.utc)
+
+        # Add to the future level's runs array
         mongo_db.future_levels.update_one(
-            {"_id": future_level_id},
-            {"$push": {"runs": new_run_record}}
+            {"_id": run['future_level_id']},
+            {"$push": {"runs": {
+                "user_id": run['user_id'],
+                "username": username,
+                "progress": run['progress'],
+                "video_url": run['video_url'],
+                "comments": run.get('comments', ''),
+                "date_submitted": run['date_submitted'],
+                "approved_date": now
+            }}}
         )
-        
-        # Update submission status
-        mongo_db.future_runs.update_one(
-            {"_id": run_oid},
-            {"$set": {
-                "status": "approved",
-                "approved_date": datetime.now(timezone.utc)
-            }}
-        )
-        
-        # Send Discord notification
+        mongo_db.future_runs.update_one({"_id": run['_id']}, {"$set": {"status": "approved", "approved_date": now}})
+
         try:
             if DISCORD_AVAILABLE:
                 notify_record_approved(
-                    username=run['user']['username'],
-                    level_name=f"{run['future_level']['name']} (Future List)",
-                    progress=run['progress'],
-                    points_earned=0
-                )
-        except Exception as e:
-            print(f"Error sending Discord notification: {e}")
-
-        # Log admin action
-        admin_user = mongo_db.users.find_one({"_id": session['user_id']})
-        admin_username = admin_user['username'] if admin_user else 'Unknown Admin'
-        log_admin_action(
-            admin_username,
-            f"APPROVED FUTURE RUN: {run['future_level']['name']}", 
-            f"User: {run['user']['username']}, Progress: {run['progress']}%"
-        )
-        
-        flash(f'Future level run approved! Added to {run["future_level"]["name"]}.', 'success')
-        return redirect(request.referrer or url_for('admin_future_runs'))
-        
-    except Exception as e:
-        flash(f'Error approving future run: {str(e)}', 'danger')
-        return redirect(request.referrer or url_for('admin_future_runs'))
-
-@app.route('/admin/reject_future_run/<run_id>', methods=['POST'])
-def admin_reject_future_run(run_id):
-    """Reject a future level run submission"""
-    if 'user_id' not in session or not session.get('is_admin'):
-        flash('Access denied', 'danger')
-        return redirect(url_for('index'))
-    
-    try:
-        run_oid = ObjectId(run_id)
-        
-        # Get the run submission with level and user info
-        run = mongo_db.future_runs.aggregate([
-            {"$match": {"_id": run_oid}},
-            {"$lookup": {
-                "from": "users",
-                "localField": "user_id",
-                "foreignField": "_id",
-                "as": "user"
-            }},
-            {"$unwind": "$user"},
-            {"$lookup": {
-                "from": "future_levels",
-                "localField": "future_level_id",
-                "foreignField": "_id",
-                "as": "future_level"
-            }},
-            {"$unwind": "$future_level"}
-        ]).next()
-        
-        if not run:
-            flash('Future run submission not found', 'danger')
-            return redirect(request.referrer or url_for('admin_future_runs'))
-        
-        # Update submission status
-        mongo_db.future_runs.update_one(
-            {"_id": run_oid},
-            {"$set": {
-                "status": "rejected",
-                "rejected_date": datetime.now(timezone.utc)
-            }}
-        )
-        
-        # Send Discord notification
-        try:
-            if DISCORD_AVAILABLE:
-                notify_record_rejected(
-                    username=run['user']['username'],
-                    level_name=f"{run['future_level']['name']} (Future List)",
+                    username=username,
+                    level_name=f"{level_name} (Future List)",
                     progress=run['progress']
                 )
         except Exception as e:
             print(f"Error sending Discord notification: {e}")
-        
-        # Log admin action
-        admin_user = mongo_db.users.find_one({"_id": session['user_id']})
-        admin_username = admin_user['username'] if admin_user else 'Unknown Admin'
-        log_admin_action(
-            admin_username, 
-            f"REJECTED FUTURE RUN: {run['future_level']['name']}", 
-            f"User: {run['user']['username']}, Progress: {run['progress']}%"
+
+        log_admin_action(session.get('username', 'Unknown Admin'), f"APPROVED FUTURE RUN: {level_name}",
+                         f"User: {username}, Progress: {run['progress']}%")
+        flash(f'Future level run approved! Added to {level_name}.', 'success')
+    except Exception as e:
+        flash(f'Error approving future run: {str(e)}', 'danger')
+    return back
+
+@app.route('/admin/reject_future_run/<run_id>', methods=['POST'])
+def admin_reject_future_run(run_id):
+    """Reject a future level run submission (also takes back an approved one)"""
+    if 'user_id' not in session or not session.get('is_admin'):
+        flash('Access denied', 'danger')
+        return redirect(url_for('index'))
+
+    back = redirect(request.referrer or url_for('admin_future_runs'))
+    try:
+        run = _load_future_run(run_id)
+        if not run:
+            flash('Future run submission not found', 'danger')
+            return back
+        if run.get('status') == 'rejected':
+            flash('This future run is already rejected', 'warning')
+            return back
+
+        username, level_name = _future_run_label(run)
+        if run.get('status') == 'approved':
+            _remove_run_from_future_level(run)
+        mongo_db.future_runs.update_one(
+            {"_id": run['_id']},
+            {"$set": {"status": "rejected", "rejected_date": datetime.now(timezone.utc)}}
         )
-        
-        flash(f'Future level run rejected.', 'info')
-        return redirect(request.referrer or url_for('admin_future_runs'))
-        
+
+        try:
+            if DISCORD_AVAILABLE and run['user']:
+                notify_record_rejected(
+                    username=username,
+                    level_name=f"{level_name} (Future List)",
+                    progress=run['progress']
+                )
+        except Exception as e:
+            print(f"Error sending Discord notification: {e}")
+
+        log_admin_action(session.get('username', 'Unknown Admin'), f"REJECTED FUTURE RUN: {level_name}",
+                         f"User: {username}, Progress: {run['progress']}%")
+        flash('Future level run rejected.', 'info')
     except Exception as e:
         flash(f'Error rejecting future run: {str(e)}', 'danger')
-        return redirect(request.referrer or url_for('admin_future_runs'))
+    return back
+
+@app.route('/admin/delete_future_run/<run_id>', methods=['POST'])
+def admin_delete_future_run(run_id):
+    """Delete a future level run entirely (and take it off the level if it was approved)"""
+    if 'user_id' not in session or not session.get('is_admin'):
+        flash('Access denied', 'danger')
+        return redirect(url_for('index'))
+
+    back = redirect(request.referrer or url_for('admin_records'))
+    try:
+        run = _load_future_run(run_id)
+        if not run:
+            flash('Future run submission not found', 'danger')
+            return back
+
+        username, level_name = _future_run_label(run)
+        if run.get('status') == 'approved':
+            _remove_run_from_future_level(run)
+        mongo_db.future_runs.delete_one({"_id": run['_id']})
+
+        log_admin_action(session.get('username', 'Unknown Admin'), f"DELETED FUTURE RUN: {level_name}",
+                         f"User: {username}, Progress: {run.get('progress')}%")
+        flash('Future level run deleted.', 'info')
+    except Exception as e:
+        flash(f'Error deleting future run: {str(e)}', 'danger')
+    return back
 
 @app.route('/future')
 def future_list():

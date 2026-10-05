@@ -200,12 +200,14 @@
                                 <small>Webhooks</small>
                             </a>
                         </div>
+                        {% if session.get('username') == 'ENGINE' %}
                         <div class="col-6">
                             <a href="{{ url_for('admin_console') }}" class="btn btn-outline-info btn-sm w-100 d-flex flex-column align-items-center p-2">
                                 <i class="fas fa-terminal mb-1"></i>
                                 <small>Console</small>
                             </a>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

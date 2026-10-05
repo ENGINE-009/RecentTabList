@@ -41,7 +41,7 @@
                     <div class="mb-3">
                         <label for="progress" class="form-label">Progress (%)</label>
                         <input type="number" class="form-control" id="progress" name="progress" min="50" max="100" required>
-                        <div class="form-text">Minimum progress required is 50%.</div>
+                        <div class="form-text"> </div>
                     </div>
                     
                     <div class="mb-3">
@@ -68,7 +68,8 @@
                 
                 <!-- Future Level Run Record Form -->
                 <form method="POST" action="{{ url_for('submit_future_run') }}" id="futureForm" style="display: none;">
-                    <div class="alert alert-warning">
+                    <!-- Not an .alert on purpose: main.js auto-closes every .alert after 5 seconds -->
+                    <div class="border border-warning rounded p-3 mb-3">
                         <strong>Future Level Run Record:</strong> Submit a run on a level from the future list and it will be put in the level's runs.
                         <br><strong>You won't get any points for a future level run, even if it gets accepted.</strong>
                     </div>
@@ -78,7 +79,7 @@
                         <select class="form-select" id="future_level_id" name="future_level_id" required>
                             <option value="" selected disabled>Select a future level</option>
                             {% for fl in future_levels %}
-                            <option value="{{ fl._id }}">{{ fl.position }}. {{ fl.name }} by {{ fl.creator }}</option>
+                            <option value="{{ fl._id }}" data-min-percentage="{{ fl.min_percentage or 1 }}">{{ fl.position }}. {{ fl.name }} by {{ fl.creator }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -86,7 +87,7 @@
                     <div class="mb-3">
                         <label for="future_progress" class="form-label">Progress (%)</label>
                         <input type="number" class="form-control" id="future_progress" name="progress" min="1" max="100" required>
-                        <div class="form-text">Any percentage from 1% to 100% is accepted.</div>
+                        <div class="form-text" id="futureMinText">Select a future level to see the minimum progress needed to submit a run.</div>
                     </div>
 
                     <div class="mb-3">
@@ -276,6 +277,17 @@ function removeRecord() {
 // Initialize single mode
 document.addEventListener('DOMContentLoaded', function() {
     switchMode('single');
+
+    // Each future level has its own minimum progress for submitting a run
+    const futureSelect = document.getElementById('future_level_id');
+    if (futureSelect) {
+        futureSelect.addEventListener('change', function() {
+            const minPercentage = this.selectedOptions[0].getAttribute('data-min-percentage') || '1';
+            document.getElementById('future_progress').min = minPercentage;
+            document.getElementById('futureMinText').textContent =
+                'Minimum progress to submit a run on this level: ' + minPercentage + '%.';
+        });
+    }
     
     // Validate progress based on selected level for single form
     document.getElementById('level_id').addEventListener('change', function() {

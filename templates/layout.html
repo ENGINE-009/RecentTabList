@@ -409,9 +409,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin') }}">Admin Panel</a>
                     </li>
+                    {% if session.get('username') == 'ENGINE' %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin_console') }}">Console</a>
                     </li>
+                    {% endif %}
                     {% endif %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button"

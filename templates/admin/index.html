@@ -85,11 +85,6 @@
                             </a>
                         </div>
                         <div class="col-6">
-                            <a href="{{ url_for('admin_level_stats') }}" class="btn btn-secondary btn-sm w-100">
-                                <i class="fas fa-chart-bar"></i><br><small>Statistics</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
                             <button class="btn btn-outline-primary btn-sm w-100" onclick="recalculateAllPoints()">
                                 <i class="fas fa-calculator"></i><br><small>Recalc Points</small>
                             </button>
@@ -110,11 +105,6 @@
                         <div class="col-6">
                             <a href="{{ url_for('admin_records') }}" class="btn btn-warning btn-sm w-100">
                                 <i class="fas fa-clipboard-list"></i><br><small>All Records</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ url_for('admin_future_runs') }}" class="btn btn-info btn-sm w-100">
-                                <i class="fas fa-running"></i><br><small>Future Runs</small>
                             </a>
                         </div>
                         <div class="col-6">
@@ -151,11 +141,6 @@
                             </a>
                         </div>
                         <div class="col-6">
-                            <a href="{{ url_for('admin_profanity') }}" class="btn btn-secondary btn-sm w-100">
-                                <i class="fas fa-filter"></i><br><small>Profanity</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
                             <a href="{{ url_for('admin_award_verifier_points_dedicated') }}" class="btn btn-success btn-sm w-100">
                                 <i class="fas fa-trophy"></i><br><small>Award Points</small>
                             </a>
@@ -164,39 +149,6 @@
                             <button class="btn btn-outline-danger btn-sm w-100" onclick="showUserTools()">
                                 <i class="fas fa-user-cog"></i><br><small>User Tools</small>
                             </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Content Management Group -->
-        <div class="col-md-3">
-            <div class="card border-success">
-                <div class="card-header bg-success text-white text-center py-2">
-                    <h6 class="mb-0">📢 Content Management</h6>
-                </div>
-                <div class="card-body p-2">
-                    <div class="row g-1">
-                        <div class="col-6">
-                            <a href="{{ url_for('admin_announcements') }}" class="btn btn-warning btn-sm w-100">
-                                <i class="fas fa-bullhorn"></i><br><small>Announcements</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ url_for('admin_news') }}" class="btn btn-primary btn-sm w-100">
-                                <i class="fas fa-newspaper"></i><br><small>News</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ url_for('admin_polls') }}" class="btn btn-success btn-sm w-100">
-                                <i class="fas fa-poll"></i><br><small>Polls</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ url_for('admin_create_news') }}" class="btn btn-outline-primary btn-sm w-100">
-                                <i class="fas fa-plus"></i><br><small>Create News</small>
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -216,11 +168,13 @@
                                 <i class="fas fa-cog"></i><br><small>Settings</small>
                             </a>
                         </div>
+                        {% if session.get('username') == 'ENGINE' %}
                         <div class="col-6">
                             <a href="{{ url_for('admin_console') }}" class="btn btn-danger btn-sm w-100">
                                 <i class="fas fa-terminal"></i><br><small>Console</small>
                             </a>
                         </div>
+                        {% endif %}
                         <div class="col-6">
                             <a href="{{ url_for('admin_webhook_settings') }}" class="btn btn-outline-warning btn-sm w-100">
                                 <i class="fas fa-webhook"></i><br><small>Webhooks</small>
@@ -231,99 +185,6 @@
             </div>
         </div>
 
-        <!-- Notifications & Communication Group -->
-        <div class="col-md-3">
-            <div class="card border-danger">
-                <div class="card-header bg-danger text-white text-center py-2">
-                    <h6 class="mb-0">🔔 Notifications & Communication</h6>
-                </div>
-                <div class="card-body p-2">
-                    <div class="row g-1">
-                        <div class="col-6">
-                            <a href="{{ url_for('admin_send_notification') }}" class="btn btn-danger btn-sm w-100">
-                                <i class="fas fa-bell"></i><br><small>Send Notification</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ url_for('admin_test_environment') }}" class="btn btn-outline-secondary btn-sm w-100">
-                                <i class="fas fa-flask"></i><br><small>Test Env</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="/virtual" class="btn btn-outline-success btn-sm w-100">
-                                <i class="fas fa-rocket"></i><br><small>Virtual View</small>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Debug & Development Group -->
-        <div class="col-md-3">
-            <div class="card border-secondary">
-                <div class="card-header bg-secondary text-white text-center py-2">
-                    <h6 class="mb-0">🐛 Debug & Development</h6>
-                </div>
-                <div class="card-body p-2">
-                    <div class="row g-1">
-                        <div class="col-6">
-                            <a href="/debug_db" class="btn btn-outline-primary btn-sm w-100">
-                                <i class="fas fa-database"></i><br><small>Debug DB</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="/debug_levels" class="btn btn-outline-warning btn-sm w-100">
-                                <i class="fas fa-bug"></i><br><small>Debug Levels</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="/debug_images" class="btn btn-outline-danger btn-sm w-100">
-                                <i class="fas fa-image"></i><br><small>Debug Images</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="/debug_thumbnails" class="btn btn-outline-dark btn-sm w-100">
-                                <i class="fas fa-images"></i><br><small>Thumbnails</small>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Performance & Monitoring Group -->
-        <div class="col-md-3">
-            <div class="card border-warning">
-                <div class="card-header bg-warning text-dark text-center py-2">
-                    <h6 class="mb-0">⚡ Performance & Monitoring</h6>
-                </div>
-                <div class="card-body p-2">
-                    <div class="row g-1">
-                        <div class="col-6">
-                            <a href="/test_speed" class="btn btn-outline-info btn-sm w-100">
-                                <i class="fas fa-tachometer-alt"></i><br><small>Speed Test</small>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <div class="btn btn-outline-secondary btn-sm w-100 disabled">
-                                <i class="fas fa-chart-line"></i><br><small>Analytics</small>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="btn btn-outline-info btn-sm w-100 disabled">
-                                <i class="fas fa-server"></i><br><small>Server Stats</small>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="btn btn-outline-success btn-sm w-100 disabled">
-                                <i class="fas fa-heartbeat"></i><br><small>Health Check</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Quick Verifier Points Form -->

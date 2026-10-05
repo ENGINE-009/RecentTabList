@@ -42,7 +42,6 @@
                                 <th>Creator</th>
                                 <th>Verifier</th>
                                 <th>ID</th>
-                                <th>Points</th>
                                 <th>Video</th>
                             </tr>
                         </thead>
@@ -54,8 +53,6 @@
                                     {% set difficulty = level.get('difficulty', 5.0) %}
                                     <span class="level-difficulty level-difficulty-{{ difficulty|float|round|int }}"></span>
                                     {{ level.get('name', '') }}
-                                    <br>
-                                    <small class="text-muted">0 ({{ level.get('min_percentage', 100) }}%) - 0 (100%) points</small>
                                 </td>
                                 <td>{{ level.get('creator', '') }}</td>
                                 <td>{{ level.get('verifier', '') }}</td>
@@ -73,9 +70,6 @@
                                     {% else %}
                                         <small class="text-muted">N/A</small>
                                     {% endif %}
-                                </td>
-                                <td>
-                                    <small class="text-muted">0 points<br>(Legacy)</small>
                                 </td>
                                 <td>
                                     {% set video_url = level.get('video_url', '') %}

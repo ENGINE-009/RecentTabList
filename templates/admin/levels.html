@@ -169,6 +169,7 @@
                                         <th>Creator</th>
                                         <th>Verifier</th>
                                         <th>Difficulty</th>
+                                        <th>Min %</th>
                                         <th>Thumbnail</th>
                                         <th>Actions</th>
                                     </tr>
@@ -181,6 +182,7 @@
                                         <td>{{ level.creator }}</td>
                                         <td>{{ level.verifier }}</td>
                                         <td>{{ level.difficulty }}/10</td>
+                                        <td>{{ level.min_percentage or 1 }}%</td>
                                         <td>
                                             {% if level.has_uploaded_thumbnail %}Uploaded image
                                             {% elif level.thumbnail_url %}Custom URL
@@ -196,7 +198,7 @@
                                                         data-level-game-id="{{ level.level_id or '' }}" data-level-points=""
                                                         data-level-thumbnail="{{ level.thumbnail_url or '' }}"
                                                         data-level-has-uploaded="{{ 'true' if level.has_uploaded_thumbnail else 'false' }}"
-                                                        data-level-min-percentage="100" data-demon-type=""
+                                                        data-level-min-percentage="{{ level.min_percentage or 1 }}" data-demon-type=""
                                                         data-level-duration="">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
@@ -208,7 +210,7 @@
                                     </tr>
                                     {% else %}
                                     <tr>
-                                        <td colspan="7" class="text-center py-3">No levels in the future list yet. Use "Add Future Level" to add one.</td>
+                                        <td colspan="8" class="text-center py-3">No levels in the future list yet. Use "Add Future Level" to add one.</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -266,10 +268,10 @@
                                 <input type="number" class="form-control" id="points" name="points" min="0" step="0.01">
                                 <small class="form-text text-muted">If left empty, points will be calculated based on position</small>
                             </div>
-                            <div class="mb-3 {{ 'd-none' if is_future }}">
-                                <label for="min_percentage" class="form-label">Minimum Percentage for Points</label>
-                                <input type="number" class="form-control" id="min_percentage" name="min_percentage" min="1" max="100" value="100">
-                                <small class="form-text text-muted">Players must achieve at least this percentage for points</small>
+                            <div class="mb-3">
+                                <label for="min_percentage" class="form-label">{{ 'Minimum Percentage to Submit a Run' if is_future else 'Minimum Percentage for Points' }}</label>
+                                <input type="number" class="form-control" id="min_percentage" name="min_percentage" min="1" max="100" value="{{ 1 if is_future else 100 }}">
+                                <small class="form-text text-muted">{{ 'Players can only submit a run on this level with at least this percentage' if is_future else 'Players must achieve at least this percentage for points' }}</small>
                             </div>
                             <div class="mb-3">
                                 <label for="video_url" class="form-label">Video URL</label>
@@ -389,10 +391,10 @@
                                 <input type="number" class="form-control" id="edit_points" name="points" min="0" step="0.01">
                                 <small class="form-text text-muted">If left empty, points will be calculated based on position</small>
                             </div>
-                            <div class="mb-3 {{ 'd-none' if is_future }}">
-                                <label for="edit_min_percentage" class="form-label">Minimum Percentage for Points</label>
+                            <div class="mb-3">
+                                <label for="edit_min_percentage" class="form-label">{{ 'Minimum Percentage to Submit a Run' if is_future else 'Minimum Percentage for Points' }}</label>
                                 <input type="number" class="form-control" id="edit_min_percentage" name="min_percentage" min="1" max="100">
-                                <small class="form-text text-muted">Players must achieve at least this percentage for points</small>
+                                <small class="form-text text-muted">{{ 'Players can only submit a run on this level with at least this percentage' if is_future else 'Players must achieve at least this percentage for points' }}</small>
                             </div>
                             <div class="mb-3">
                                 <label for="edit_video_url" class="form-label">Video URL</label>
