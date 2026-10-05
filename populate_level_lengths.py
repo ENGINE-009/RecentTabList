@@ -91,6 +91,6 @@ def main():
 
 
 if __name__ == "__main__":
-    print("🚀 Fetching GD length categories...\n")
+    print(" Fetching GD length categories...\n")
     main()
     print("\n✅ Done!")

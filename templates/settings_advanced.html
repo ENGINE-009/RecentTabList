@@ -21,14 +21,11 @@
                     <a href="#privacy" class="list-group-item list-group-item-action" data-bs-toggle="pill">
                         🛡️ Privacy
                     </a>
-                    <a href="#gd-verification" class="list-group-item list-group-item-action" data-bs-toggle="pill">
-                        🎮 GD Verification
+                    <a href="#social-media" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        🔗 Social Media
                     </a>
                     <a href="#sessions" class="list-group-item list-group-item-action" data-bs-toggle="pill">
                         📱 Active Sessions
-                    </a>
-                    <a href="#notifications" class="list-group-item list-group-item-action" data-bs-toggle="pill">
-                        🔔 Notifications
                     </a>
                     <a href="#recovery" class="list-group-item list-group-item-action" data-bs-toggle="pill">
                         🔧 Account Recovery
@@ -491,61 +488,79 @@
                     </div>
                 </div>
                 
-                <!-- GD Verification -->
-                <div class="tab-pane fade" id="gd-verification">
+                <!-- Social Media Settings -->
+                <div class="tab-pane fade" id="social-media">
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="mb-0">🎮 Geometry Dash Verification</h5>
+                            <h5 class="mb-0">🔗 Social Media Links</h5>
                         </div>
                         <div class="card-body">
-                            {% if user.gd_verified %}
-                                <div class="alert alert-success">
-                                    <strong>✅ Verified GD Player</strong><br>
-                                    Player Name: <strong>{{ user.gd_player_name }}</strong><br>
-                                    Account ID: <strong>{{ user.gd_account_id }}</strong>
-                                </div>
-                                <form method="POST" action="{{ url_for('update_user_settings') }}">
-                                    <input type="hidden" name="action" value="unlink_gd">
-                                    <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Unlink GD account?')">
-                                        🔗 Unlink GD Account
-                                    </button>
-                                </form>
-                            {% else %}
-                                <div class="alert alert-info">
-                                    <strong>🎮 Link your Geometry Dash account</strong><br>
-                                    Verify your GD identity to prevent impersonation and get a verified badge!
+                            <form method="POST" action="{{ url_for('update_user_settings') }}">
+                                <input type="hidden" name="action" value="social_media">
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="youtube_url" class="form-label">
+                                                <i class="fab fa-youtube text-danger"></i> YouTube
+                                            </label>
+                                            <input type="url" class="form-control" id="youtube_url" name="youtube_url" 
+                                                   value="{{ user.youtube_url or '' }}" placeholder="https://youtube.com/@channel">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="twitch_url" class="form-label">
+                                                <i class="fab fa-twitch" style="color: #9146ff;"></i> Twitch
+                                            </label>
+                                            <input type="url" class="form-control" id="twitch_url" name="twitch_url" 
+                                                   value="{{ user.twitch_url or '' }}" placeholder="https://twitch.tv/channel">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="tiktok_url" class="form-label">
+                                                <i class="fab fa-tiktok text-dark"></i> TikTok
+                                            </label>
+                                            <input type="url" class="form-control" id="tiktok_url" name="tiktok_url" 
+                                                   value="{{ user.tiktok_url or '' }}" placeholder="https://tiktok.com/@username">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="vimeo_url" class="form-label">
+                                                <i class="fab fa-vimeo text-info"></i> Vimeo
+                                            </label>
+                                            <input type="url" class="form-control" id="vimeo_url" name="vimeo_url" 
+                                                   value="{{ user.vimeo_url or '' }}" placeholder="https://vimeo.com/username">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="discord_tag" class="form-label">
+                                                <i class="fab fa-discord text-primary"></i> Discord
+                                            </label>
+                                            <input type="text" class="form-control" id="discord_tag" name="discord_tag" 
+                                                   value="{{ user.discord_tag or '' }}" placeholder="username#1234">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="twitter_url" class="form-label">
+                                                <i class="fab fa-twitter text-info"></i> Twitter/X
+                                            </label>
+                                            <input type="url" class="form-control" id="twitter_url" name="twitter_url" 
+                                                   value="{{ user.twitter_url or '' }}" placeholder="https://twitter.com/username">
+                                        </div>
+                                    </div>
                                 </div>
                                 
-                                <form method="POST" action="{{ url_for('update_user_settings') }}">
-                                    <input type="hidden" name="action" value="verify_gd">
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label">GD Player Name</label>
-                                        <input type="text" name="gd_player_name" class="form-control" required>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label">GD Account ID</label>
-                                        <input type="number" name="gd_account_id" class="form-control" required>
-                                        <small class="text-muted">Find this in your GD profile</small>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label">Verification Method</label>
-                                        <select name="verification_method" class="form-select" required>
-                                            <option value="">Choose verification method</option>
-                                            <option value="profile_description">Add code to profile description</option>
-                                            <option value="video_proof">Upload verification video</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div id="verification_instructions" class="alert alert-warning" style="display: none;">
-                                        <!-- Instructions will be shown based on selected method -->
-                                    </div>
-                                    
-                                    <button type="submit" class="btn btn-success">🎮 Start Verification</button>
-                                </form>
-                            {% endif %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Note:</strong> These links will be displayed on your profile page for other users to see.
+                                </div>
+                                
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-save"></i> Update Social Media Links
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -634,84 +649,6 @@
                                 </div>
                                 
                                 <button type="submit" class="btn btn-primary">💾 Save Recovery Options</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Notification Settings -->
-                <div class="tab-pane fade" id="notifications">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">🔔 Notification Preferences</h5>
-                        </div>
-                        <div class="card-body">
-                            <form method="POST" action="{{ url_for('update_user_settings') }}">
-                                <input type="hidden" name="action" value="notification_preferences">
-                                
-                                <p class="text-muted mb-3">Choose which types of notifications you want to receive:</p>
-                                
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" name="news" id="notif_news" 
-                                                   {% if user.get('notification_preferences', {}).get('news', True) %}checked{% endif %}>
-                                            <label class="form-check-label" for="notif_news">
-                                                <strong>📰 News Articles</strong><br>
-                                                <small class="text-muted">Get notified when new news articles are published</small>
-                                            </label>
-                                        </div>
-                                        
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" name="announcement" id="notif_announcement" 
-                                                   {% if user.get('notification_preferences', {}).get('announcement', True) %}checked{% endif %}>
-                                            <label class="form-check-label" for="notif_announcement">
-                                                <strong>📢 Announcements</strong><br>
-                                                <small class="text-muted">Get notified about site announcements and updates</small>
-                                            </label>
-                                        </div>
-                                        
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" name="poll" id="notif_poll" 
-                                                   {% if user.get('notification_preferences', {}).get('poll', True) %}checked{% endif %}>
-                                            <label class="form-check-label" for="notif_poll">
-                                                <strong>📊 Polls</strong><br>
-                                                <small class="text-muted">Get notified when new polls are created</small>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-6">
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" name="record_status" id="notif_record_status" 
-                                                   {% if user.get('notification_preferences', {}).get('record_status', True) %}checked{% endif %}>
-                                            <label class="form-check-label" for="notif_record_status">
-                                                <strong>📋 Record Status</strong><br>
-                                                <small class="text-muted">Get notified when your records are approved or rejected</small>
-                                            </label>
-                                        </div>
-                                        
-
-                                        
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" name="top_1" id="notif_top_1" 
-                                                   {% if user.get('notification_preferences', {}).get('top_1', True) %}checked{% endif %}>
-                                            <label class="form-check-label" for="notif_top_1">
-                                                <strong>🏆 New #1 Levels</strong><br>
-                                                <small class="text-muted">Get notified when a new level reaches #1 on the list</small>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle"></i>
-                                    <strong>Note:</strong> You can always view all notifications in your notification center, regardless of these settings.
-                                </div>
-                                
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save"></i> Save Notification Preferences
-                                </button>
                             </form>
                         </div>
                     </div>

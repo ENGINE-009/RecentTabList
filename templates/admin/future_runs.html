@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+
+{% block title %}Future Level Runs - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Future Level Run Submissions</h1>
+        <a href="{{ url_for('admin') }}" class="btn btn-secondary">← Back to Admin</a>
+    </div>
+
+    {% if runs %}
+    <div class="card">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">Pending Future Level Runs ({{ runs|length }})</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Player</th>
+                            <th>Future Level</th>
+                            <th>Progress</th>
+                            <th>Video</th>
+                            <th>Comments</th>
+                            <th>Submitted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for run in runs %}
+                        <tr>
+                            <td><strong>{{ run.user.username }}</strong></td>
+                            <td>
+                                <strong>{{ run.future_level.name }}</strong>
+                                {% if run.future_level.creator %}
+                                <br><small class="text-muted">by {{ run.future_level.creator }}</small>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-info fs-6">{{ run.progress }}%</span></td>
+                            <td>
+                                {% if run.video_url %}
+                                <a href="{{ run.video_url }}" target="_blank" class="btn btn-sm btn-outline-primary">🎥 Watch</a>
+                                {% endif %}
+                            </td>
+                            <td><small>{{ run.comments or '—' }}</small></td>
+                            <td><small>{{ run.date_submitted.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                            <td>
+                                <form method="POST" action="{{ url_for('admin_approve_future_run', run_id=run._id|string) }}" class="d-inline"
+                                      onsubmit="return confirm('Approve this run?')">
+                                    <button type="submit" class="btn btn-sm btn-success">✅ Approve</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin_reject_future_run', run_id=run._id|string) }}" class="d-inline"
+                                      onsubmit="return confirm('Reject this run?')">
+                                    <button type="submit" class="btn btn-sm btn-danger">❌ Reject</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card text-center">
+        <div class="card-body py-5">
+            <h4 class="text-muted">No pending future level run submissions</h4>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -60,24 +60,26 @@ class DiscordNotifier:
     
     def send_record_notification(self, record_data):
         """Send notification for new record submission (non-blocking)"""
+        is_future_run = record_data.get('submission_type') == 'future_run'
+        
         embed = {
-            "title": "📝 New Record Submission",
-            "description": "A new record has been submitted for review",
-            "color": 10181046,  # Purple color (0x9b59b6)
+            "title": "New Future Level Run Submission" if is_future_run else "New Record Submission",
+            "description": "A new future level run has been submitted" if is_future_run else "A new record has been submitted",
+            "color": 16766020 if is_future_run else 10181046,  # Orange for future runs, purple for regular
             "timestamp": datetime.utcnow().isoformat(),
             "fields": [
                 {
-                    "name": "👤 Player",
+                    "name": "Player",
                     "value": record_data.get('username', 'Unknown'),
                     "inline": True
                 },
                 {
-                    "name": "🎮 Level",
+                    "name": "Level",
                     "value": record_data.get('level_name', 'Unknown'),
                     "inline": True
                 },
                 {
-                    "name": "📊 Progress",
+                    "name": "Progress",
                     "value": f"{record_data.get('progress', 0)}%",
                     "inline": True
                 }
@@ -87,10 +89,18 @@ class DiscordNotifier:
             }
         }
         
+        # Add submission type indicator
+        if is_future_run:
+            embed["fields"].append({
+                "name": "Submission Type",
+                "value": "Future Level Run (Any %)",
+                "inline": True
+            })
+        
         # Add video link if available
         if record_data.get('video_url'):
             embed["fields"].append({
-                "name": "🎥 Video",
+                "name": "Video",
                 "value": f"[Watch Video]({record_data['video_url']})",
                 "inline": False
             })
@@ -98,16 +108,17 @@ class DiscordNotifier:
         # Add comments if available
         if record_data.get('comments') and record_data['comments'].strip():
             embed["fields"].append({
-                "name": "💬 Comments",
+                "name": "Comments",
                 "value": record_data['comments'][:500] + ("..." if len(record_data['comments']) > 500 else ""),
                 "inline": False
             })
         
         # Add admin panel link
         website_url = os.environ.get('WEBSITE_URL', 'http://localhost:10000')
+        admin_link = f"{website_url}/admin/future_runs" if is_future_run else f"{website_url}/admin"
         embed["fields"].append({
-            "name": "⚙️ Admin Panel",
-            "value": f"[Review Submission]({website_url}/admin)",
+            "name": "Admin Panel",
+            "value": f"[Review Submission]({admin_link})",
             "inline": False
         })
         
@@ -126,22 +137,22 @@ class DiscordNotifier:
             "timestamp": datetime.utcnow().isoformat(),
             "fields": [
                 {
-                    "name": "👤 Player",
+                    "name": "Player",
                     "value": record_data.get('username', 'Unknown'),
                     "inline": True
                 },
                 {
-                    "name": "🎮 Level",
+                    "name": "Level",
                     "value": record_data.get('level_name', 'Unknown'),
                     "inline": True
                 },
                 {
-                    "name": "📊 Progress",
+                    "name": "Progress",
                     "value": f"{record_data.get('progress', 0)}%",
                     "inline": True
                 },
                 {
-                    "name": "🏆 Points Earned",
+                    "name": "Points Earned",
                     "value": f"{record_data.get('points_earned', 0)} pts",
                     "inline": True
                 }
@@ -166,17 +177,17 @@ class DiscordNotifier:
             "timestamp": datetime.utcnow().isoformat(),
             "fields": [
                 {
-                    "name": "👤 Player",
+                    "name": "Player",
                     "value": record_data.get('username', 'Unknown'),
                     "inline": True
                 },
                 {
-                    "name": "🎮 Level",
+                    "name": "Level",
                     "value": record_data.get('level_name', 'Unknown'),
                     "inline": True
                 },
                 {
-                    "name": "📊 Progress",
+                    "name": "Progress",
                     "value": f"{record_data.get('progress', 0)}%",
                     "inline": True
                 }
@@ -188,7 +199,7 @@ class DiscordNotifier:
         
         if reason:
             embed["fields"].append({
-                "name": "📝 Reason",
+                "name": "Reason",
                 "value": reason,
                 "inline": False
             })
@@ -222,18 +233,18 @@ class DiscordNotifier:
             color = 16766020  # Yellow/Orange
         
         embed = {
-            "title": "🔧 Admin Action",
+            "title": "Admin Action",
             "description": f"Admin activity detected",
             "color": color,
             "timestamp": datetime.utcnow().isoformat(),
             "fields": [
                 {
-                    "name": "👤 Admin",
+                    "name": "Admin",
                     "value": admin_username,
                     "inline": True
                 },
                 {
-                    "name": "⚡ Action",
+                    "name": "Action",
                     "value": action,
                     "inline": True
                 }
@@ -254,7 +265,7 @@ class DiscordNotifier:
         # Add admin panel link
         website_url = os.environ.get('WEBSITE_URL', 'http://localhost:10000')
         embed["fields"].append({
-            "name": "⚙️ Admin Panel",
+            "name": "Admin Panel",
             "value": f"[View Admin Panel]({website_url}/admin)",
             "inline": False
         })
@@ -268,17 +279,19 @@ class DiscordNotifier:
 # Global notifier instance
 discord_notifier = DiscordNotifier()
 
-def notify_record_submitted(username, level_name, progress, video_url, comments=None):
+def notify_record_submitted(username, level_name, progress, video_url, comments=None, submission_type=None):
     """Convenience function to notify about new record submission"""
     record_data = {
         'username': username,
         'level_name': level_name,
         'progress': progress,
         'video_url': video_url,
-        'comments': comments
+        'comments': comments,
+        'submission_type': submission_type
     }
     
-    print(f"🔔 notify_record_submitted called for {username}")
+    submission_desc = "future level run" if submission_type == "future_run" else "record"
+    print(f"🔔 notify_record_submitted called for {username} - {submission_desc}")
     
     # Send directly instead of using threads (more reliable)
     try:
@@ -315,10 +328,10 @@ def notify_record_approved(username, level_name, progress, points_earned):
             from main import mongo_db
             user = mongo_db.users.find_one({"username": username})
             if user and user.get('discord_id'):
-                dm_message = f"🎉 **Record Approved!**\n\n"
+                dm_message = f"**Record Approved!**\n\n"
                 dm_message += f"Your {progress}% record on **{level_name}** has been approved!\n"
                 dm_message += f"You earned **{points_earned} points**! 🏆\n\n"
-                dm_message += f"Keep up the great work! 💪"
+                dm_message += f"Keep up the great work!"
                 
                 success = send_dm_to_user(user['discord_id'], dm_message)
                 if success:

@@ -245,7 +245,7 @@ def start_discord_bot():
     
     def run_bot():
         try:
-            print("🚀 Starting Discord bot event loop...")
+            print("Starting Discord bot event loop...")
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             print("🔗 Connecting to Discord...")

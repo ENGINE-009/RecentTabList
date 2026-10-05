@@ -613,14 +613,12 @@
 
     // Progressive Level Loading - Auto-refresh without page reload
     {% if auto_refresh %}
-    console.log('🔄 Starting progressive level loading...');
     
     let lastCount = 0;
     const refreshInterval = setInterval(function() {
         fetch('/api/loading-status')
             .then(response => response.json())
             .then(data => {
-                console.log(`📊 Loading status: ${data.count} levels (${data.complete ? 'complete' : 'loading...'})`);
                 
                 // If we have new levels, update the page
                 if (data.count > lastCount && data.levels && data.levels.length > 0) {
@@ -705,13 +703,11 @@
                             });
                         });
                         
-                        console.log(`✅ Updated page with ${data.count} levels`);
                     }
                 }
                 
                 // If loading is complete, stop polling
                 if (data.complete) {
-                    console.log('✅ Progressive loading complete!');
                     clearInterval(refreshInterval);
                     
                     // Show completion message
@@ -730,7 +726,6 @@
                     
                     // If we have levels but they're not showing, do a full page reload
                     if (data.count > 0 && document.querySelectorAll('.level-card').length === 0) {
-                        console.log('🔄 Reloading page to show levels...');
                         setTimeout(() => window.location.reload(), 2000);
                     }
                 }

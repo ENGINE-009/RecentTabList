@@ -11,6 +11,7 @@
                 <div class="btn-group" role="group">
                     <button type="button" class="btn btn-outline-light" id="singleModeBtn" onclick="switchMode('single')">Single Record</button>
                     <button type="button" class="btn btn-outline-light" id="multipleModeBtn" onclick="switchMode('multiple')">Multiple Records</button>
+                    <button type="button" class="btn btn-outline-light" id="futureModeBtn" onclick="switchMode('future')">Future Level Run Record</button>
                 </div>
             </div>
             <div class="card-body">
@@ -65,6 +66,50 @@
                     </div>
                 </form>
                 
+                <!-- Future Level Run Record Form -->
+                <form method="POST" action="{{ url_for('submit_future_run') }}" id="futureForm" style="display: none;">
+                    <div class="alert alert-warning">
+                        <strong>Future Level Run Record:</strong> Submit a run on a level from the future list and it will be put in the level's runs.
+                        <br><strong>You won't get any points for a future level run, even if it gets accepted.</strong>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="future_level_id" class="form-label">Future Level</label>
+                        <select class="form-select" id="future_level_id" name="future_level_id" required>
+                            <option value="" selected disabled>Select a future level</option>
+                            {% for fl in future_levels %}
+                            <option value="{{ fl._id }}">{{ fl.position }}. {{ fl.name }} by {{ fl.creator }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="future_progress" class="form-label">Progress (%)</label>
+                        <input type="number" class="form-control" id="future_progress" name="progress" min="1" max="100" required>
+                        <div class="form-text">Any percentage from 1% to 100% is accepted.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="future_video_url" class="form-label">Video URL</label>
+                        <input type="url" class="form-control" id="future_video_url" name="video_url" placeholder="https://www.youtube.com/watch?v=..." required>
+                        <div class="form-text">Supported: YouTube, Streamable, Medal, TikTok, Twitch.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="future_comments" class="form-label">Comments (Optional)</label>
+                        <textarea class="form-control" id="future_comments" name="comments" rows="3" placeholder="Any additional info for moderators..."></textarea>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="confirmFuture" required>
+                        <label class="form-check-label" for="confirmFuture">I confirm this is my own gameplay and no cheats were used</label>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Submit Future Level Run</button>
+                    </div>
+                </form>
+
                 <!-- Multiple Records Form -->
                 <form method="POST" action="{{ url_for('submit_record') }}" id="multipleForm" style="display: none;">
                     <input type="hidden" name="multiple_submission" value="true">
@@ -115,7 +160,7 @@
                 </ul>
                 
                 <h5>Review Process</h5>
-                <p>All submissions are reviewed by our moderators. This process typically takes 1-3 days. You can check the status of your submission on your profile page.</p>
+                <p>All submissions are reviewed by the list moderators.</p>
                 
                 <h5>Points System</h5>
                 <p>Points are awarded based on the level's position in the list and your progress:</p>
@@ -148,24 +193,30 @@ const levelOptionsHTML = `
 function switchMode(mode) {
     const singleForm = document.getElementById('singleForm');
     const multipleForm = document.getElementById('multipleForm');
+    const futureForm = document.getElementById('futureForm');
     const singleBtn = document.getElementById('singleModeBtn');
     const multipleBtn = document.getElementById('multipleModeBtn');
-    
+    const futureBtn = document.getElementById('futureModeBtn');
+
+    singleForm.style.display = 'none';
+    multipleForm.style.display = 'none';
+    futureForm.style.display = 'none';
+    singleBtn.classList.remove('active');
+    multipleBtn.classList.remove('active');
+    futureBtn.classList.remove('active');
+
     if (mode === 'single') {
         singleForm.style.display = 'block';
-        multipleForm.style.display = 'none';
         singleBtn.classList.add('active');
-        multipleBtn.classList.remove('active');
-    } else {
-        singleForm.style.display = 'none';
+    } else if (mode === 'multiple') {
         multipleForm.style.display = 'block';
-        singleBtn.classList.remove('active');
         multipleBtn.classList.add('active');
-        
-        // Initialize with one record if container is empty
         if (document.getElementById('recordsContainer').children.length === 0) {
             addRecord();
         }
+    } else {
+        futureForm.style.display = 'block';
+        futureBtn.classList.add('active');
     }
 }
 

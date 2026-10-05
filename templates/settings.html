@@ -18,19 +18,6 @@
                 }
             });
         }
-        
-        // Verify GD account form validation
-        const gdVerifyForm = document.querySelector('form[action*="verify_gd_account"]');
-        if (gdVerifyForm) {
-            gdVerifyForm.addEventListener('submit', function(e) {
-                const gdUsername = document.getElementById('gd_username').value.trim();
-                if (!gdUsername) {
-                    e.preventDefault();
-                    alert('Please enter your GD username first!');
-                    return false;
-                }
-            });
-        }
     });
 </script>
 
@@ -411,16 +398,6 @@
                         
                         <div class="mb-3">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="email_notifications" 
-                                       name="email_notifications" {% if user.email_notifications %}checked{% endif %}>
-                                <label class="form-check-label" for="email_notifications">
-                                    Email notifications
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="public_profile" 
                                        name="public_profile" {% if user.public_profile != False %}checked{% endif %}>
                                 <label class="form-check-label" for="public_profile">
@@ -471,6 +448,22 @@
                         </div>
                         
                         <div class="mb-2">
+                            <label for="tiktok_url" class="form-label">
+                                <i class="fab fa-tiktok text-dark"></i> TikTok
+                            </label>
+                            <input type="url" class="form-control form-control-sm" id="tiktok_url" name="tiktok_url" 
+                                   value="{{ user.tiktok_url or '' }}" placeholder="https://tiktok.com/@username">
+                        </div>
+                        
+                        <div class="mb-2">
+                            <label for="vimeo_url" class="form-label">
+                                <i class="fab fa-vimeo text-info"></i> Vimeo
+                            </label>
+                            <input type="url" class="form-control form-control-sm" id="vimeo_url" name="vimeo_url" 
+                                   value="{{ user.vimeo_url or '' }}" placeholder="https://vimeo.com/username">
+                        </div>
+                        
+                        <div class="mb-2">
                             <label for="discord_tag" class="form-label">
                                 <i class="fab fa-discord text-primary"></i> Discord
                             </label>
@@ -493,113 +486,7 @@
         </div>
     </div>
 
-    <!-- Row 3: GD Account Verification -->
-    <div class="row">
-        <div class="col-12 mb-3">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">Geometry Dash Account Verification</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <form method="POST" action="{{ url_for('update_user_settings') }}">
-                                <input type="hidden" name="action" value="gd_verification">
-                                
-                                <div class="mb-3">
-                                    <label for="gd_username" class="form-label">GD Username</label>
-                                    <input type="text" class="form-control form-control-sm" id="gd_username" name="gd_username" 
-                                           value="{{ user.gd_username or '' }}" placeholder="Your Geometry Dash username">
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="gd_player_id" class="form-label">GD Player ID</label>
-                                    <input type="number" class="form-control form-control-sm" id="gd_player_id" name="gd_player_id" 
-                                           value="{{ user.gd_player_id or '' }}" placeholder="Your player ID (optional)">
-                                    <div class="form-text">Found in your GD profile URL</div>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Verification Method</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="verification_method" id="method_comment" value="comment" checked>
-                                        <label class="form-check-label" for="method_comment">
-                                            <strong>Comment Method:</strong> Post a comment with code on any level
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="verification_method" id="method_level" value="level">
-                                        <label class="form-check-label" for="method_level">
-                                            <strong>Level Method:</strong> Create a level with verification code in description
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="verification_method" id="method_profile" value="profile">
-                                        <label class="form-check-label" for="method_profile">
-                                            <strong>Profile Method:</strong> Add verification code to your GD profile description
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="verification_method" id="method_friend" value="friend">
-                                        <label class="form-check-label" for="method_friend">
-                                            <strong>Friend Request Method:</strong> Send a friend request with verification code as message
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="verification_method" id="method_message" value="message">
-                                        <label class="form-check-label" for="method_message">
-                                            <strong>Direct Message Method:</strong> Send a private message with verification code
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <button type="submit" class="btn btn-success btn-sm">Generate Verification Code</button>
-                            </form>
-                        </div>
-                        <div class="col-md-6">
-                            {% if user.gd_verification_code %}
-                            <div class="alert alert-info">
-                                <h6>Your Verification Code:</h6>
-                                <code class="fs-5">{{ user.gd_verification_code }}</code>
-                                <hr>
-                                <p class="mb-2"><strong>Instructions:</strong></p>
-                                <ol class="mb-0">
-                                    <li>Copy the code above</li>
-                                    <li>{% if user.gd_verification_method == 'comment' %}Post it as a comment on any GD level{% elif user.gd_verification_method == 'level' %}Create a level and put it in the description{% elif user.gd_verification_method == 'profile' %}Add it to your GD profile description{% elif user.gd_verification_method == 'friend' %}Send a friend request to user 'RTLVerification' with the code as the message{% elif user.gd_verification_method == 'message' %}Send a private message to user 'RTLVerification' with the verification code{% else %}Add it to your GD profile description{% endif %}</li>
-                                    <li>Click "Verify Account" below</li>
-                                </ol>
-                            </div>
-                            <form method="POST" action="{{ url_for('update_user_settings') }}">
-                                <input type="hidden" name="action" value="verify_gd_account">
-                                <button type="submit" class="btn btn-primary btn-sm w-100">Verify GD Account</button>
-                            </form>
-                            {% else %}
-                            <div class="alert alert-secondary">
-                                <h6>Why verify your GD account?</h6>
-                                <ul class="mb-0">
-                                    <li>Prove you own the GD account</li>
-                                    <li>Get verified badge on your profile</li>
-                                    <li>Prevent impersonation</li>
-                                    <li>Access to exclusive features</li>
-                                    <li>Higher trust level for submissions</li>
-                                </ul>
-                            </div>
-                            {% endif %}
-                            
-                            {% if user.gd_verified %}
-                            <div class="alert alert-success">
-                                <h6>Account Verified!</h6>
-                                <p class="mb-0">Your GD account <strong>{{ user.gd_username }}</strong> has been verified.</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Row 4: Change Password and Account Info -->
+    <!-- Row 3: Change Password and Account Info -->
     <div class="row">
         <div class="col-lg-6 mb-3">
             <div class="card h-100">
@@ -751,86 +638,6 @@
                         <button type="submit" class="btn btn-warning">Reset API Key</button>
                     </div>
                 </form>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Row 5: Notification Preferences -->
-    <div class="row">
-        <div class="col-12 mb-3">
-            <div class="card h-100">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">🔔 Notification Preferences</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('update_user_settings') }}">
-                        <input type="hidden" name="action" value="notification_preferences">
-                        
-                        <p class="text-muted mb-3">Choose which types of notifications you want to receive:</p>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" name="news" id="notif_news" 
-                                           {% if user.notification_preferences.get('news', True) %}checked{% endif %}>
-                                    <label class="form-check-label" for="notif_news">
-                                        <strong>📰 News Articles</strong><br>
-                                        <small class="text-muted">Get notified when new news articles are published</small>
-                                    </label>
-                                </div>
-                                
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" name="announcement" id="notif_announcement" 
-                                           {% if user.notification_preferences.get('announcement', True) %}checked{% endif %}>
-                                    <label class="form-check-label" for="notif_announcement">
-                                        <strong>📢 Announcements</strong><br>
-                                        <small class="text-muted">Get notified about site announcements and updates</small>
-                                    </label>
-                                </div>
-                                
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" name="poll" id="notif_poll" 
-                                           {% if user.notification_preferences.get('poll', True) %}checked{% endif %}>
-                                    <label class="form-check-label" for="notif_poll">
-                                        <strong>📊 Polls</strong><br>
-                                        <small class="text-muted">Get notified when new polls are created</small>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" name="record_status" id="notif_record_status" 
-                                           {% if user.notification_preferences.get('record_status', True) %}checked{% endif %}>
-                                    <label class="form-check-label" for="notif_record_status">
-                                        <strong>📋 Record Status</strong><br>
-                                        <small class="text-muted">Get notified when your records are approved or rejected</small>
-                                    </label>
-                                </div>
-                                
-
-                                
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" name="top_1" id="notif_top_1" 
-                                           {% if user.notification_preferences.get('top_1', True) %}checked{% endif %}>
-                                    <label class="form-check-label" for="notif_top_1">
-                                        <strong>🏆 New #1 Levels</strong><br>
-                                        <small class="text-muted">Get notified when a new level reaches #1 on the list</small>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Note:</strong> You can always view all notifications in your notification center, regardless of these settings.
-                        </div>
-                        
-                        <button type="submit" class="btn btn-info">
-                            <i class="fas fa-save"></i> Save Notification Preferences
-                        </button>
-                    </form>
-                </div>
             </div>
         </div>
     </div>

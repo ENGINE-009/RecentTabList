@@ -50,8 +50,15 @@
         font-size: 3rem;
         color: #888;
         flex-shrink: 0;
+        overflow: hidden;
     }
-    
+
+    .level-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
     .level-info {
         flex: 1;
     }
@@ -357,8 +364,19 @@
             <div class="level-card">
                 {% if current_level %}
                 <div class="level-display">
-                    <div class="level-thumbnail">
+                    {% set video_url = current_level.video_url or '' %}
+                    {% set youtube_id = '' %}
+                    {% if 'youtu.be/' in video_url %}
+                        {% set youtube_id = video_url.split('youtu.be/')[1].split('?')[0].split('&')[0] %}
+                    {% elif 'youtube.com/watch?v=' in video_url %}
+                        {% set youtube_id = video_url.split('v=')[1].split('&')[0] %}
+                    {% endif %}
+                    <div class="level-thumbnail" id="rouletteThumbnail" data-level-id="{{ current_level._id }}">
+                        {% if youtube_id %}
+                        <img src="https://img.youtube.com/vi/{{ youtube_id }}/hqdefault.jpg" alt="{{ current_level.name }}">
+                        {% else %}
                         🎮
+                        {% endif %}
                     </div>
                     <div class="level-info">
                         <div class="level-title">#{{ current_level.position }} - {{ current_level.name }}</div>
@@ -426,7 +444,7 @@
             {% if session.user_id %}
             <form method="POST" style="margin-top: 2rem;">
                 <input type="hidden" name="action" value="start_roulette">
-                <button type="submit" class="btn-start">🚀 Start Challenge</button>
+                <button type="submit" class="btn-start"> Start Challenge</button>
             </form>
             {% else %}
             <div style="margin-top: 2rem;">
@@ -447,6 +465,22 @@
 
 {% block extra_js %}
 <script>
+// Swap in the level's own thumbnail from the database once it arrives
+(function() {
+    var box = document.getElementById('rouletteThumbnail');
+    if (!box) return;
+    fetch('/api/level_thumbnail/' + encodeURIComponent(box.getAttribute('data-level-id')))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.thumbnail_url) return;
+            var img = document.createElement('img');
+            img.alt = '';
+            img.onload = function() { box.replaceChildren(img); };
+            img.src = data.thumbnail_url;
+        })
+        .catch(function() {});
+})();
+
 function copyLevelID(levelId) {
     navigator.clipboard.writeText(levelId).then(function() {
         alert('Level ID copied to clipboard!');

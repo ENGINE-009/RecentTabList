@@ -1,10 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+﻿from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, Response
 from pymongo import MongoClient
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
 import os
 from datetime import datetime, timezone, timedelta
-
 # 1Try to import Discord integration, but don't fail if it's missing
 try:
     from discord_integration import notify_record_submitted, notify_record_approved, notify_record_rejected, notify_admin_action
@@ -775,19 +774,8 @@ def utility_processor():
             }
     
     def get_notification_count():
-        """Get unread notification count for current user (no DB user lookup - uses session)."""
-        if 'user_id' not in session:
-            return 0
-        try:
-            user_id = session['user_id']
-            user_join_date = session.get('date_joined')
-            query = {"user_id": user_id, "read": False}
-            if user_join_date:
-                query["created_at"] = {"$gte": user_join_date}
-            return mongo_db.notifications.count_documents(query)
-        except Exception as e:
-            print(f"Error getting notification count: {e}")
-            return 0
+        """Disabled - notifications removed"""
+        return 0
     
 
     
@@ -798,14 +786,13 @@ def utility_processor():
         get_active_announcements=get_active_announcements,
         get_active_polls=get_active_polls,
         get_all_levels=lambda: list(mongo_db.levels.find({}, {"name": 1, "creator": 1, "verifier": 1, "position": 1, "points": 1, "level_id": 1, "difficulty": 1, "is_legacy": 1, "min_percentage": 1}).sort("position", 1)),
-        get_future_levels=lambda: list(mongo_db.future_levels.find().sort("position", 1)),
+        get_future_levels=lambda: get_future_levels_light(),
         get_demon_difficulty_display=get_demon_difficulty_display,
         get_demon_type_display=get_demon_type_display,
         get_difficulty_text=get_difficulty_text,
         datetime=datetime,
         get_user_by_id=get_user_by_id,
         get_discord_data=get_discord_data,
-        get_notification_count=get_notification_count,
         get_translation=get_translation
     )
 
@@ -2040,7 +2027,7 @@ def quick_fix_urls():
             else:
                 results.append(f"❌ Level '{fix['name']}' not found")
         
-        html = "<h2>🚀 Quick URL Fix Results</h2><ul>"
+        html = "<h2> Quick URL Fix Results</h2><ul>"
         for result in results:
             html += f"<li>{result}</li>"
         html += "</ul>"
@@ -4123,12 +4110,13 @@ def admin_add_level():
             "verifier": verifier,
             "position": position,
             "difficulty": difficulty,
-            "demon_type": None,  # Demon subcategories removed
             "points": points,
             "video_url": video_url,
             "level_id": numeric_level_id,
             "min_percentage": min_percentage,
             "is_legacy": is_legacy,
+            "thumbnail_url": _thumbnail_from_form()[1],
+            "description": request.form.get('description', '').strip(),
             "date_added": datetime.now(timezone.utc)
         }
 
@@ -5520,7 +5508,7 @@ def virtual_list():
         </style>
     </head>
     <body>
-        <h1>🚀 RTL - Virtual List (Ultra Fast)</h1>
+        <h1> RTL - Virtual List (Ultra Fast)</h1>
         <p>Showing {len(main_list)} levels with virtual scrolling</p>
         <p><a href="/">← Back to paginated view</a></p>
         
@@ -5616,7 +5604,7 @@ def instant_load():
             <p>Load time: {end_time - start_time:.3f} seconds</p>
             <p>Main levels: {len(main_levels)} | Legacy: {len(legacy_levels)}</p>
             <br>
-            <a href="/" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 18px;">🚀 Go to Main List</a>
+            <a href="/" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 18px;"> Go to Main List</a>
             <br><br>
             <a href="/legacy">View Legacy List</a>
         </div>
@@ -5687,7 +5675,7 @@ def load_images():
             <p>Load time: {end_time - start_time:.3f} seconds</p>
             <p>Updated {len(main_levels)} main + {len(legacy_levels)} legacy levels</p>
             <br>
-            <a href="/" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 18px;">🚀 View Main List</a>
+            <a href="/" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 18px;"> View Main List</a>
             <br><br>
             <a href="/legacy">View Legacy List</a>
         </div>
@@ -7139,7 +7127,120 @@ def submit_record():
         flash('Please load levels first', 'info')
         return redirect(url_for('instant_load'))
 
-    return render_template('submit_record.html', levels=levels)
+    # Get future levels for the future level run submission form
+    future_levels = get_future_levels_light()
+
+    return render_template('submit_record.html', levels=levels, future_levels=future_levels)
+
+
+@app.route('/submit_future_run', methods=['POST'])
+def submit_future_run():
+    """Handle future level run submissions"""
+    if 'user_id' not in session:
+        flash('Please log in to submit a future level run', 'warning')
+        return redirect(url_for('login'))
+    
+    # Check if user is temp banned
+    is_banned, ban_info = is_user_temp_banned(session['user_id'])
+    if is_banned and ban_info:
+        expiry_date = ban_info.get('expiry_date')
+        reason = ban_info.get('reason', 'Rule Violation')
+        expiry_str = expiry_date.strftime('%Y-%m-%d %H:%M UTC') if expiry_date else 'Unknown'
+        flash(f'You are temporarily banned from submitting records. Reason: {reason}. Ban expires: {expiry_str}', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        # Get form data
+        future_level_id = request.form.get('future_level_id', '').strip()
+        progress_str = request.form.get('progress', '').strip()
+        video_url = request.form.get('video_url', '').strip()
+        comments = request.form.get('comments', '').strip()
+        
+        # Validate input
+        if not future_level_id:
+            flash('Please select a future level', 'danger')
+            return redirect(url_for('submit_record'))
+        
+        if not progress_str:
+            flash('Please enter your progress percentage', 'danger')
+            return redirect(url_for('submit_record'))
+        
+        if not video_url:
+            flash('Please provide a video URL', 'danger')
+            return redirect(url_for('submit_record'))
+        
+        # Convert values
+        try:
+            # Future levels use integer ids; older ones may still be ObjectIds
+            level_id = int(future_level_id) if future_level_id.isdigit() else ObjectId(future_level_id)
+            progress = int(progress_str)
+        except (ValueError, InvalidId):
+            flash('Invalid level or progress value', 'danger')
+            return redirect(url_for('submit_record'))
+        
+        # Validate progress range (any % from 1-100 for future levels)
+        if progress < 1 or progress > 100:
+            flash('Progress must be between 1 and 100', 'danger')
+            return redirect(url_for('submit_record'))
+        
+        # Check if future level exists
+        future_level = mongo_db.future_levels.find_one({"_id": level_id}, {"name": 1, "creator": 1, "position": 1})
+        if not future_level:
+            flash('Selected future level does not exist', 'danger')
+            return redirect(url_for('submit_record'))
+        
+        # Check for profanity in comments if provided
+        if comments:
+            is_allowed, reason = check_comment_profanity(comments)
+            if not is_allowed:
+                flash(f'Comments not allowed: {reason}', 'danger')
+                return redirect(url_for('submit_record'))
+        
+        # Create future run submission
+        future_run_id = ObjectId()
+        future_run = {
+            "_id": future_run_id,
+            "user_id": session['user_id'],
+            "future_level_id": level_id,
+            "progress": progress,
+            "video_url": video_url,
+            "comments": comments,
+            "status": "pending",
+            "date_submitted": datetime.now(timezone.utc)
+        }
+        
+        # Insert into database
+        mongo_db.future_runs.insert_one(future_run)
+        
+        # Get user and level info for notifications
+        user = mongo_db.users.find_one({"_id": session['user_id']})
+        username = user['username'] if user else 'Unknown'
+        level_name = future_level['name']
+        creator = future_level['creator']
+        
+        # Send Discord notification
+        try:
+            if DISCORD_AVAILABLE:
+                notify_record_submitted(
+                    username=username,
+                    level_name=f"{level_name} (Future List)",
+                    progress=progress,
+                    video_url=video_url,
+                    comments=comments,
+                    submission_type="future_run"
+                )
+        except Exception as e:
+            print(f"Error sending Discord notification for future run: {e}")
+        
+        # Log the submission
+        log_submission_with_comments(session['user_id'], f"{level_name} (Future List)", progress, comments)
+        
+        flash(f'Future level run submitted successfully! Your {progress}% run on "{level_name}" is now pending review by admins.', 'success')
+        return redirect(url_for('profile'))
+        
+    except Exception as e:
+        flash(f'Error submitting future level run: {str(e)}', 'danger')
+        return redirect(url_for('submit_record'))
 
 @app.route('/submit_verification', methods=['GET', 'POST'])
 def submit_verification():
@@ -7853,7 +7954,7 @@ def admin_remove_level_with_reason():
     except Exception as e:
         flash(f'Error removing level: {str(e)}', 'danger')
         return redirect(url_for('admin_levels'))
-@app.route('/admin/dashboard')
+@app.route('/admin/olddashboard')
 def admin_dashboard():
     """New categorized admin dashboard"""
     if 'user_id' not in session:
@@ -7885,7 +7986,7 @@ def admin_dashboard():
 
     return render_template('admin/dashboard.html', stats=stats)
 
-@app.route('/admin/profanity')
+@app.route('/admin/dfsjdfskjsd')
 def admin_profanity():
     """Profanity filter management"""
     if 'user_id' not in session or not session.get('is_admin'):
@@ -7895,11 +7996,6 @@ def admin_profanity():
     word_lists = profanity_filter.get_word_lists()
     return render_template('admin/profanity.html', word_lists=word_lists)
 
-@app.route('/admin/profanity/add', methods=['POST'])
-def admin_add_profanity_word():
-    """Add word to profanity filter"""
-    if 'user_id' not in session or not session.get('is_admin'):
-        return {'error': 'Access denied'}, 403
     
     word = request.form.get('word', '').strip().lower()
     severity = request.form.get('severity', 'strong')
@@ -7916,11 +8012,6 @@ def admin_add_profanity_word():
     
     return redirect(url_for('admin_profanity'))
 
-@app.route('/admin/profanity/remove', methods=['POST'])
-def admin_remove_profanity_word():
-    """Remove word from profanity filter"""
-    if 'user_id' not in session or not session.get('is_admin'):
-        return {'error': 'Access denied'}, 403
     
     word = request.form.get('word', '').strip().lower()
     
@@ -7936,11 +8027,6 @@ def admin_remove_profanity_word():
     
     return redirect(url_for('admin_profanity'))
 
-@app.route('/admin/profanity/test', methods=['POST'])
-def admin_test_profanity():
-    """Test profanity filter"""
-    if 'user_id' not in session or not session.get('is_admin'):
-        return {'error': 'Access denied'}, 403
     
     test_text = request.form.get('test_text', '').strip()
     test_type = request.form.get('test_type', 'username')
@@ -7971,10 +8057,6 @@ def admin_news():
         flash('Access denied - Admin only', 'danger')
         return redirect(url_for('index'))
     
-    # For now, redirect to admin dashboard since news system is not implemented
-    flash('News management system is not yet implemented', 'info')
-    return redirect(url_for('admin_dashboard'))
-
 @app.route('/admin/news/create')
 def admin_create_news():
     """Admin create news - placeholder route"""
@@ -7982,9 +8064,8 @@ def admin_create_news():
         flash('Access denied - Admin only', 'danger')
         return redirect(url_for('index'))
     
-    # For now, redirect to admin dashboard since news system is not implemented
     flash('News creation system is not yet implemented', 'info')
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin'))
 
 @app.route('/admin/news/edit/<article_id>')
 def admin_edit_news(article_id):
@@ -7993,9 +8074,8 @@ def admin_edit_news(article_id):
         flash('Access denied - Admin only', 'danger')
         return redirect(url_for('index'))
     
-    # For now, redirect to admin dashboard since news system is not implemented
     flash('News editing system is not yet implemented', 'info')
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin'))
 
 @app.route('/admin/news/delete/<article_id>', methods=['POST'])
 def admin_delete_news(article_id):
@@ -8006,7 +8086,7 @@ def admin_delete_news(article_id):
     
     # For now, redirect to admin dashboard since news system is not implemented
     flash('News deletion system is not yet implemented', 'info')
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin'))
 
 @app.route('/news/<article_id>')
 def news_article(article_id):
@@ -8028,6 +8108,48 @@ def news_article(article_id):
         print(f"Error loading news article: {e}")
         flash('Error loading article', 'danger')
         return redirect(url_for('index'))
+
+def get_pending_records_with_details():
+    """Pending records with their user and level attached.
+    Uses separate queries to avoid a slow $lookup on Atlas M0."""
+    raw_pending = list(mongo_db.records.find({"status": "pending"}))
+    if not raw_pending:
+        return []
+    user_ids = list({r["user_id"] for r in raw_pending if "user_id" in r})
+    level_ids = list({r["level_id"] for r in raw_pending if "level_id" in r})
+    users_map = {u["_id"]: u for u in mongo_db.users.find({"_id": {"$in": user_ids}})}
+    levels_map = {l["_id"]: l for l in mongo_db.levels.find({"_id": {"$in": level_ids}}, {"thumbnail_url": 0})}
+    pending_records = []
+    for r in raw_pending:
+        user = users_map.get(r.get("user_id"))
+        level = levels_map.get(r.get("level_id"))
+        if user and level:
+            r["user"] = user
+            r["level"] = level
+            pending_records.append(r)
+    return pending_records
+
+
+def get_pending_future_runs():
+    """Pending future level runs with their user and future level attached."""
+    raw_pending = list(mongo_db.future_runs.find({"status": "pending"}).sort("date_submitted", -1))
+    if not raw_pending:
+        return []
+    user_ids = list({r["user_id"] for r in raw_pending if "user_id" in r})
+    level_ids = list({r["future_level_id"] for r in raw_pending if "future_level_id" in r})
+    users_map = {u["_id"]: u for u in mongo_db.users.find({"_id": {"$in": user_ids}}, {"username": 1})}
+    levels_map = {l["_id"]: l for l in mongo_db.future_levels.find(
+        {"_id": {"$in": level_ids}}, {"name": 1, "creator": 1, "position": 1})}
+    pending_runs = []
+    for r in raw_pending:
+        user = users_map.get(r.get("user_id"))
+        level = levels_map.get(r.get("future_level_id"))
+        if user and level:
+            r["user"] = user
+            r["future_level"] = level
+            pending_runs.append(r)
+    return pending_runs
+
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -8073,24 +8195,8 @@ def admin():
         except Exception as e:
             flash(f'Error awarding verifier points: {e}', 'danger')
     
-    # Get pending records - use separate queries to avoid slow $lookup on Atlas M0
-    raw_pending = list(mongo_db.records.find({"status": "pending"}))
-    if raw_pending:
-        user_ids = list({r["user_id"] for r in raw_pending if "user_id" in r})
-        level_ids = list({r["level_id"] for r in raw_pending if "level_id" in r})
-        users_map = {u["_id"]: u for u in mongo_db.users.find({"_id": {"$in": user_ids}})}
-        levels_map = {l["_id"]: l for l in mongo_db.levels.find({"_id": {"$in": level_ids}}, {"thumbnail_url": 0})}
-        pending_records = []
-        for r in raw_pending:
-            user = users_map.get(r.get("user_id"))
-            level = levels_map.get(r.get("level_id"))
-            if user and level:
-                r["user"] = user
-                r["level"] = level
-                pending_records.append(r)
-    else:
-        pending_records = []
-    
+    pending_records = get_pending_records_with_details()
+
     # Generate stats for the admin dashboard
     try:
 
@@ -8166,7 +8272,8 @@ def admin():
         }
         print(f"Error generating admin stats: {e}")
     
-    return render_template('admin/index.html', pending_records=pending_records, stats=stats)
+    return render_template('admin/index.html', pending_records=pending_records, stats=stats,
+                           pending_future_runs=get_pending_future_runs())
 
 @app.route('/admin/verifications')
 def admin_verifications():
@@ -9958,7 +10065,11 @@ def admin_levels():
         # Check if we're filtering for legacy levels
         filter_type = request.args.get('filter')
         is_legacy_filter = (filter_type == 'legacy')
-        
+
+        if filter_type == 'future' and request.method == 'GET':
+            return render_template('admin/levels.html', levels=[], is_legacy_filter=False,
+                                   list_filter='future', future_levels=get_future_levels_light())
+
         if request.method == 'POST':
             # Get next level ID
             last_level = mongo_db.levels.find_one(sort=[("_id", -1)])
@@ -10115,7 +10226,8 @@ def admin_levels():
                     "demon_type": 1, "min_percentage": 1
                 }).sort("position", 1).limit(100))
         
-        return render_template('admin/levels.html', levels=levels, is_legacy_filter=is_legacy_filter)
+        return render_template('admin/levels.html', levels=levels, is_legacy_filter=is_legacy_filter,
+                               list_filter='legacy' if is_legacy_filter else 'main', future_levels=[])
     
     except Exception as e:
         print(f"Error in admin_levels route: {e}")
@@ -10144,7 +10256,6 @@ def admin_edit_level():
     difficulty = float(request.form.get('difficulty'))
     # Note: Demon type requirement removed - now using text-based difficulties
     # demon_type = request.form.get('demon_type', '').strip() if difficulty == 10 else None
-    demon_type = None  # Demon subcategories removed
 
     
     # Exclude thumbnail_url — it can be hundreds of KB of base64 and causes
@@ -10255,7 +10366,6 @@ def admin_edit_level():
         "video_url": request.form.get('video_url'),
         "description": request.form.get('description'),
         "difficulty": difficulty,
-        "demon_type": demon_type,
         "position": position,
         "is_legacy": is_legacy,
         "level_type": request.form.get('level_type', 'Level'),
@@ -10722,7 +10832,7 @@ def admin_fix_verifier_points():
     
     if 'user_id' not in session or not session.get('is_admin'):
         flash('Access denied - Admin only', 'danger')
-        return redirect(url_for('admin_panel'))
+        return redirect(url_for('admin'))
     
     try:
         # Run the fix function
@@ -10734,7 +10844,7 @@ def admin_fix_verifier_points():
         import traceback
         traceback.print_exc()
     
-    return redirect(url_for('admin_panel'))
+    return redirect(url_for('admin'))
 import traceback
 
 from bson import ObjectId
@@ -10750,7 +10860,7 @@ def admin_update_top_1_role():
     
     if 'user_id' not in session or not session.get('is_admin'):
         flash('Access denied - Admin only', 'danger')
-        return redirect(url_for('admin_panel'))
+        return redirect(url_for('admin'))
     
     try:
         # Run the update function
@@ -10761,44 +10871,6 @@ def admin_update_top_1_role():
     except Exception as e:
         flash(f'❌ Error updating Top 1 player role: {str(e)}', 'danger')
         print(f"Admin update top 1 role error: {e}")
-        import traceback
-        traceback.print_exc()
-    
-    return redirect(url_for('admin_panel'))
-
-
-@app.route('/admin/reject_record/<record_id>', methods=['POST'])
-def admin_reject_record(record_id):
-    """Enhanced record rejection with better error handling"""
-    if 'user_id' not in session or not session.get('is_admin'):
-        flash('Access denied', 'danger')
-        return redirect(url_for('index'))
-    
-    try:
-        # Convert string record_id to ObjectId
-        try:
-            record_object_id = ObjectId(record_id)
-        except InvalidId:
-            flash('Invalid record ID', 'danger')
-            return redirect(url_for('admin'))
-        
-        # Get record info before rejecting
-        record = mongo_db.records.find_one({"_id": record_object_id})
-        if not record:
-            flash('Record not found', 'danger')
-            return redirect(url_for('admin'))
-        
-        # Call the separate function to handle the actual rejection
-        success = reject_record(record_id)
-        
-        if success:
-            flash(f'✅ Record rejected for "{record["level_name"]}".', 'success')
-        else:
-            flash(f'❌ Error rejecting record for "{record["level_name"]}".', 'danger')
-            
-    except Exception as e:
-        flash(f'Error rejecting record: {str(e)}', 'danger')
-        print(f"Admin reject record error: {e}")
         import traceback
         traceback.print_exc()
     
@@ -10852,6 +10924,7 @@ def admin_accept_verification_legacy(submission_id):
     
     return redirect(url_for('admin_verifications'))
 
+@app.route('/admin/reject_record/<record_id>', methods=['POST'], endpoint='admin_reject_record')
 @app.route('/admin/record_legacy/<string:record_id>/reject', methods=['POST'])
 def admin_reject_record_legacy(record_id):
     """Reject a specific record"""
@@ -11358,7 +11431,7 @@ def admin_toggle_future_list():
                 upsert=True
             )
             log_admin_action(admin_username, "Future List Enabled", "Enabled the Future List feature")
-            flash('Future List enabled! 🚀', 'success')
+            flash('Future List enabled! ', 'success')
         elif action == 'disable':
             mongo_db.site_settings.update_one(
                 {"_id": "main"},
@@ -11701,79 +11774,127 @@ def admin_delete_website():
     # This is totally a real delete function 😉
     return redirect('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
 
-@app.route('/admin/future_levels', methods=['GET', 'POST'])
-def admin_future_levels():
-    """Admin interface for managing future levels"""
+def get_future_levels_light():
+    """Future levels sorted by position, without the uploaded image blobs
+    (those live in thumbnail_data and are served by future_level_thumbnail)."""
+    return list(mongo_db.future_levels.find({}, {"thumbnail_data": 0}).sort("position", 1))
+
+
+def _thumbnail_from_form():
+    """Read the thumbnail options shared by the level forms.
+    Returns (thumbnail_type, thumbnail_url); the type falls back to
+    'keep_existing' when the submitted image or URL can't be used."""
+    thumbnail_type = request.form.get('thumbnail_type', 'auto')
+    thumbnail_url = ''
+
+    if thumbnail_type == 'url':
+        thumbnail_url = request.form.get('thumbnail_url', '').strip()
+        if not thumbnail_url.lower().startswith(('http://', 'https://')):
+            flash('The image URL must start with http:// or https://, so the thumbnail was not changed.', 'warning')
+            return 'keep_existing', ''
+    elif thumbnail_type == 'upload':
+        file = request.files.get('thumbnail_file')
+        thumbnail_url = convert_image_to_base64(file) if file and file.filename else None
+        if not thumbnail_url:
+            flash('The uploaded image could not be used, so the thumbnail was not changed.', 'warning')
+            return 'keep_existing', ''
+    elif thumbnail_type in ('keep', 'keep_existing'):
+        thumbnail_type = 'keep_existing'
+
+    return thumbnail_type, thumbnail_url
+
+
+def _future_thumbnail_fields(thumbnail_type, thumbnail_url):
+    """Fields to store for a future level's thumbnail. Uploaded images go in
+    thumbnail_data so that list queries can leave them out."""
+    uploaded = thumbnail_url.startswith('data:')
+    return {
+        "thumbnail_url": '' if uploaded else thumbnail_url,
+        "thumbnail_data": thumbnail_url if uploaded else '',
+        "has_uploaded_thumbnail": uploaded,
+        "thumbnail_version": int(datetime.now(timezone.utc).timestamp()),
+    }
+
+
+def _future_level_id_from_form():
+    """Future level _id from the form's level_id field (int or ObjectId), or None."""
+    level_id_str = request.form.get('level_id', '')
+    try:
+        return int(level_id_str)
+    except (TypeError, ValueError):
+        try:
+            return ObjectId(level_id_str)
+        except (TypeError, ValueError, InvalidId):
+            return None
+
+
+def _future_neighbors(position):
+    """Names of the future levels directly above and below a position."""
+    above = mongo_db.future_levels.find_one({"position": position - 1}, {"name": 1}) if position > 1 else None
+    below = mongo_db.future_levels.find_one({"position": position + 1}, {"name": 1})
+    return (above['name'] if above else None), (below['name'] if below else None)
+
+
+@app.route('/admin/add_future_level', methods=['POST'])
+def admin_add_future_level():
+    """Add a level to the future list (form lives on /admin/levels?filter=future)"""
     if 'user_id' not in session or not session.get('is_admin'):
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
-    
-    if request.method == 'POST':
-        # Get next level ID
-        last_level = mongo_db.future_levels.find_one(sort=[("_id", -1)])
-        next_id = (last_level['_id'] + 1) if last_level else 1
-        
-        name = request.form.get('name')
-        creator = request.form.get('creator')
-        verifier = request.form.get('verifier') or "Not verified yet"
-        level_id = request.form.get('level_id')
-        video_url = request.form.get('video_url')
-        description = request.form.get('description')
+
+    back = redirect(url_for('admin_levels', filter='future'))
+
+    name = request.form.get('name', '').strip()
+    creator = request.form.get('creator', '').strip()
+    try:
         difficulty = float(request.form.get('difficulty'))
         position = int(request.form.get('position'))
-        
-        # Shift existing levels at this position and below
-        mongo_db.future_levels.update_many(
-            {"position": {"$gte": position}},
-            {"$inc": {"position": 1}}
-        )
-        
-        new_level = {
-            "_id": next_id,
-            "name": name,
-            "creator": creator,
-            "verifier": verifier,
-            "level_id": level_id or None,
-            "video_url": video_url,
-            "description": description,
-            "difficulty": difficulty,
-            "position": position,
-            "date_added": datetime.now(timezone.utc)
-        }
-        
-        mongo_db.future_levels.insert_one(new_level)
-        
-        # Log level placement to changelog
-        above_level = None
-        below_level = None
-        
-        # Find levels above and below
-        if position > 1:
-            above_level_doc = mongo_db.future_levels.find_one({"position": position - 1})
-            if above_level_doc:
-                above_level = above_level_doc['name']
-        
-        below_level_doc = mongo_db.future_levels.find_one({"position": position + 1})
-        if below_level_doc:
-            below_level = below_level_doc['name']
-        
-        log_level_change(
-            action="placed",
-            level_name=name,
-            admin_username=session.get('username', 'Unknown'),
-            position=position,
-            above_level=above_level,
-            below_level=below_level,
-            list_type="future"
-        )
-        
-        flash('Future level added successfully!', 'success')
-        return redirect(url_for('admin_future_levels'))
-    
-    # Get all future levels
-    future_levels = list(mongo_db.future_levels.find({}).sort("position", 1))
-    
-    return render_template('admin/future_levels.html', levels=future_levels)
+    except (TypeError, ValueError):
+        flash('Difficulty and position must be numbers', 'danger')
+        return back
+    if not name or not creator:
+        flash('Level name and creator are required', 'danger')
+        return back
+
+    position = max(1, min(position, mongo_db.future_levels.count_documents({}) + 1))
+    thumbnail_type, thumbnail_url = _thumbnail_from_form()
+
+    last_level = mongo_db.future_levels.find_one({"_id": {"$type": "number"}}, {"_id": 1}, sort=[("_id", -1)])
+    next_id = (int(last_level['_id']) + 1) if last_level else 1
+
+    # Shift existing levels at this position and below
+    mongo_db.future_levels.update_many(
+        {"position": {"$gte": position}},
+        {"$inc": {"position": 1}}
+    )
+
+    mongo_db.future_levels.insert_one({
+        "_id": next_id,
+        "name": name,
+        "creator": creator,
+        "verifier": request.form.get('verifier', '').strip() or "Not verified yet",
+        "level_id": request.form.get('level_id', '').strip() or None,
+        "video_url": request.form.get('video_url', '').strip(),
+        "description": request.form.get('description', '').strip(),
+        "difficulty": difficulty,
+        "position": position,
+        "date_added": datetime.now(timezone.utc),
+        **_future_thumbnail_fields(thumbnail_type, thumbnail_url)
+    })
+
+    above_level, below_level = _future_neighbors(position)
+    log_level_change(
+        action="placed",
+        level_name=name,
+        admin_username=session.get('username', 'Unknown'),
+        position=position,
+        above_level=above_level,
+        below_level=below_level,
+        list_type="future"
+    )
+
+    flash(f'Future level "{name}" added at position {position}', 'success')
+    return back
 
 @app.route('/admin/edit_future_level', methods=['POST'])
 def admin_edit_future_level():
@@ -11781,73 +11902,66 @@ def admin_edit_future_level():
     if 'user_id' not in session or not session.get('is_admin'):
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
-    
-    level_id_str = request.form.get('level_id')
-    
-    # Handle both ObjectId and integer level IDs
-    try:
-        level_id = ObjectId(level_id_str)
-    except (ValueError, InvalidId):
-        try:
-            level_id = int(level_id_str)
-        except ValueError:
-            flash('Invalid level ID format', 'danger')
-            return redirect(url_for('admin_future_levels'))
-    
-    # Get current level
-    level = mongo_db.future_levels.find_one({"_id": level_id})
+
+    back = redirect(url_for('admin_levels', filter='future'))
+
+    level_id = _future_level_id_from_form()
+    level = mongo_db.future_levels.find_one({"_id": level_id}, {"name": 1, "position": 1}) if level_id is not None else None
     if not level:
         flash('Future level not found', 'danger')
-        return redirect(url_for('admin_future_levels'))
-    
+        return back
+
+    name = request.form.get('name', '').strip()
+    creator = request.form.get('creator', '').strip()
+    try:
+        difficulty = float(request.form.get('difficulty'))
+        new_position = int(request.form.get('position'))
+    except (TypeError, ValueError):
+        flash('Difficulty and position must be numbers', 'danger')
+        return back
+    if not name or not creator:
+        flash('Level name and creator are required', 'danger')
+        return back
+
     old_position = level['position']
-    new_position = int(request.form.get('position'))
-    
+    new_position = max(1, min(new_position, mongo_db.future_levels.count_documents({})))
+
     # Handle position changes
-    if new_position != old_position:
-        if old_position < new_position:
-            # Moving down: shift levels between old and new position up
-            mongo_db.future_levels.update_many(
-                {"position": {"$gt": old_position, "$lte": new_position}},
-                {"$inc": {"position": -1}}
-            )
-        elif old_position > new_position:
-            # Moving up: shift levels between new and old position down
-            mongo_db.future_levels.update_many(
-                {"position": {"$gte": new_position, "$lt": old_position}},
-                {"$inc": {"position": 1}}
-            )
-    
+    if old_position < new_position:
+        # Moving down: shift levels between old and new position up
+        mongo_db.future_levels.update_many(
+            {"position": {"$gt": old_position, "$lte": new_position}},
+            {"$inc": {"position": -1}}
+        )
+    elif old_position > new_position:
+        # Moving up: shift levels between new and old position down
+        mongo_db.future_levels.update_many(
+            {"position": {"$gte": new_position, "$lt": old_position}},
+            {"$inc": {"position": 1}}
+        )
+
     update_data = {
-        "name": request.form.get('name'),
-        "creator": request.form.get('creator'),
-        "verifier": request.form.get('verifier') or "Not verified yet",
-        "level_id": request.form.get('level_id') or None,
-        "video_url": request.form.get('video_url'),
-        "description": request.form.get('description'),
-        "difficulty": float(request.form.get('difficulty')),
+        "name": name,
+        "creator": creator,
+        "verifier": request.form.get('verifier', '').strip() or "Not verified yet",
+        "level_id": request.form.get('game_level_id', '').strip() or None,
+        "video_url": request.form.get('video_url', '').strip(),
+        "description": request.form.get('description', '').strip(),
+        "difficulty": difficulty,
         "position": new_position
     }
-    
+
+    thumbnail_type, thumbnail_url = _thumbnail_from_form()
+    if thumbnail_type != 'keep_existing':
+        update_data.update(_future_thumbnail_fields(thumbnail_type, thumbnail_url))
+
     mongo_db.future_levels.update_one({"_id": level_id}, {"$set": update_data})
-    
-    # Log changes if position changed
+
     if new_position != old_position:
-        above_level = None
-        below_level = None
-        
-        if new_position > 1:
-            above_level_doc = mongo_db.future_levels.find_one({"position": new_position - 1})
-            if above_level_doc:
-                above_level = above_level_doc['name']
-        
-        below_level_doc = mongo_db.future_levels.find_one({"position": new_position + 1})
-        if below_level_doc:
-            below_level = below_level_doc['name']
-        
+        above_level, below_level = _future_neighbors(new_position)
         log_level_change(
             action="moved",
-            level_name=update_data['name'],
+            level_name=name,
             admin_username=session.get('username', 'Unknown'),
             old_position=old_position,
             new_position=new_position,
@@ -11855,9 +11969,9 @@ def admin_edit_future_level():
             below_level=below_level,
             list_type="future"
         )
-    
+
     flash('Future level updated successfully!', 'success')
-    return redirect(url_for('admin_future_levels'))
+    return back
 
 @app.route('/admin/delete_future_level', methods=['POST'])
 def admin_delete_future_level():
@@ -11865,47 +11979,233 @@ def admin_delete_future_level():
     if 'user_id' not in session or not session.get('is_admin'):
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
-    
-    level_id_str = request.form.get('level_id')
-    
-    # Handle both ObjectId and integer level IDs
-    try:
-        level_id = ObjectId(level_id_str)
-    except (ValueError, InvalidId):
-        try:
-            level_id = int(level_id_str)
-        except ValueError:
-            flash('Invalid level ID format', 'danger')
-            return redirect(url_for('admin_future_levels'))
-    
-    # Get level info before deletion
-    level = mongo_db.future_levels.find_one({"_id": level_id})
+
+    back = redirect(url_for('admin_levels', filter='future'))
+
+    level_id = _future_level_id_from_form()
+    level = mongo_db.future_levels.find_one({"_id": level_id}, {"name": 1, "position": 1}) if level_id is not None else None
     if not level:
         flash('Future level not found', 'danger')
-        return redirect(url_for('admin_future_levels'))
-    
+        return back
+
     level_position = level['position']
-    
-    # Delete the level
+
     mongo_db.future_levels.delete_one({"_id": level_id})
-    
-    # Log level removal to changelog
+
     log_level_change(
         action="removed",
         level_name=level['name'],
         admin_username=session.get('username', 'Unknown'),
         old_position=level_position,
+        reason=request.form.get('removal_reason', '').strip(),
         list_type="future"
     )
-    
+
     # Shift positions of levels that were below the deleted level
     mongo_db.future_levels.update_many(
         {"position": {"$gt": level_position}},
         {"$inc": {"position": -1}}
     )
+
+    flash(f'Future level "{level["name"]}" deleted successfully!', 'success')
+    return back
+
+@app.route('/future/<int:level_id>/thumbnail')
+def future_level_thumbnail(level_id):
+    """Serve a future level's uploaded thumbnail as an image"""
+    if not session.get('is_admin'):
+        settings = mongo_db.site_settings.find_one({"_id": "main"})
+        if not settings or not settings.get('future_list_enabled', False):
+            abort(404)
+
+    doc = mongo_db.future_levels.find_one({"_id": level_id}, {"thumbnail_data": 1})
+    header, _, encoded = ((doc or {}).get('thumbnail_data') or '').partition(',')
+    mimetype = header[5:].split(';')[0] if header.startswith('data:') else ''
+    if mimetype not in ('image/jpeg', 'image/png', 'image/gif', 'image/webp') or not encoded:
+        abort(404)
+
+    try:
+        image_bytes = base64.b64decode(encoded)
+    except ValueError:
+        abort(404)
+
+    # Safe to cache for long: the templates add ?v=<thumbnail_version> to the URL
+    response = Response(image_bytes, mimetype=mimetype)
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    return response
+
+@app.route('/admin/future_runs')
+def admin_future_runs():
+    """Admin interface for managing future level run submissions"""
+    if 'user_id' not in session or not session.get('is_admin'):
+        flash('Access denied', 'danger')
+        return redirect(url_for('index'))
     
-    flash('Future level deleted successfully!', 'success')
-    return redirect(url_for('admin_future_levels'))
+    try:
+        runs = get_pending_future_runs()
+        
+        return render_template('admin/future_runs.html', runs=runs)
+        
+    except Exception as e:
+        flash(f'Error loading future run submissions: {str(e)}', 'danger')
+        return redirect(url_for('admin'))
+
+@app.route('/admin/approve_future_run/<run_id>', methods=['POST'])
+def admin_approve_future_run(run_id):
+    """Approve a future level run submission"""
+    if 'user_id' not in session or not session.get('is_admin'):
+        flash('Access denied', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        run_oid = ObjectId(run_id)
+        
+        # Get the run submission with level and user info
+        run = mongo_db.future_runs.aggregate([
+            {"$match": {"_id": run_oid}},
+            {"$lookup": {
+                "from": "users",
+                "localField": "user_id",
+                "foreignField": "_id",
+                "as": "user"
+            }},
+            {"$unwind": "$user"},
+            {"$lookup": {
+                "from": "future_levels",
+                "localField": "future_level_id",
+                "foreignField": "_id",
+                "as": "future_level"
+            }},
+            {"$unwind": "$future_level"}
+        ]).next()
+        
+        if not run:
+            flash('Future run submission not found', 'danger')
+            return redirect(request.referrer or url_for('admin_future_runs'))
+        
+        # Add run to the future level's runs array
+        future_level_id = run['future_level_id']
+        new_run_record = {
+            "user_id": run['user_id'],
+            "username": run['user']['username'],
+            "progress": run['progress'],
+            "video_url": run['video_url'],
+            "comments": run.get('comments', ''),
+            "date_submitted": run['date_submitted'],
+            "approved_date": datetime.now(timezone.utc)
+        }
+        
+        # Add to future level's runs array
+        mongo_db.future_levels.update_one(
+            {"_id": future_level_id},
+            {"$push": {"runs": new_run_record}}
+        )
+        
+        # Update submission status
+        mongo_db.future_runs.update_one(
+            {"_id": run_oid},
+            {"$set": {
+                "status": "approved",
+                "approved_date": datetime.now(timezone.utc)
+            }}
+        )
+        
+        # Send Discord notification
+        try:
+            if DISCORD_AVAILABLE:
+                notify_record_approved(
+                    username=run['user']['username'],
+                    level_name=f"{run['future_level']['name']} (Future List)",
+                    progress=run['progress'],
+                    points_earned=0
+                )
+        except Exception as e:
+            print(f"Error sending Discord notification: {e}")
+
+        # Log admin action
+        admin_user = mongo_db.users.find_one({"_id": session['user_id']})
+        admin_username = admin_user['username'] if admin_user else 'Unknown Admin'
+        log_admin_action(
+            admin_username,
+            f"APPROVED FUTURE RUN: {run['future_level']['name']}", 
+            f"User: {run['user']['username']}, Progress: {run['progress']}%"
+        )
+        
+        flash(f'Future level run approved! Added to {run["future_level"]["name"]}.', 'success')
+        return redirect(request.referrer or url_for('admin_future_runs'))
+        
+    except Exception as e:
+        flash(f'Error approving future run: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('admin_future_runs'))
+
+@app.route('/admin/reject_future_run/<run_id>', methods=['POST'])
+def admin_reject_future_run(run_id):
+    """Reject a future level run submission"""
+    if 'user_id' not in session or not session.get('is_admin'):
+        flash('Access denied', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        run_oid = ObjectId(run_id)
+        
+        # Get the run submission with level and user info
+        run = mongo_db.future_runs.aggregate([
+            {"$match": {"_id": run_oid}},
+            {"$lookup": {
+                "from": "users",
+                "localField": "user_id",
+                "foreignField": "_id",
+                "as": "user"
+            }},
+            {"$unwind": "$user"},
+            {"$lookup": {
+                "from": "future_levels",
+                "localField": "future_level_id",
+                "foreignField": "_id",
+                "as": "future_level"
+            }},
+            {"$unwind": "$future_level"}
+        ]).next()
+        
+        if not run:
+            flash('Future run submission not found', 'danger')
+            return redirect(request.referrer or url_for('admin_future_runs'))
+        
+        # Update submission status
+        mongo_db.future_runs.update_one(
+            {"_id": run_oid},
+            {"$set": {
+                "status": "rejected",
+                "rejected_date": datetime.now(timezone.utc)
+            }}
+        )
+        
+        # Send Discord notification
+        try:
+            if DISCORD_AVAILABLE:
+                notify_record_rejected(
+                    username=run['user']['username'],
+                    level_name=f"{run['future_level']['name']} (Future List)",
+                    progress=run['progress']
+                )
+        except Exception as e:
+            print(f"Error sending Discord notification: {e}")
+        
+        # Log admin action
+        admin_user = mongo_db.users.find_one({"_id": session['user_id']})
+        admin_username = admin_user['username'] if admin_user else 'Unknown Admin'
+        log_admin_action(
+            admin_username, 
+            f"REJECTED FUTURE RUN: {run['future_level']['name']}", 
+            f"User: {run['user']['username']}, Progress: {run['progress']}%"
+        )
+        
+        flash(f'Future level run rejected.', 'info')
+        return redirect(request.referrer or url_for('admin_future_runs'))
+        
+    except Exception as e:
+        flash(f'Error rejecting future run: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('admin_future_runs'))
 
 @app.route('/future')
 def future_list():
@@ -11915,10 +12215,7 @@ def future_list():
     if not settings or not settings.get('future_list_enabled', False):
         return render_template('future_disabled.html')
     
-    # Get future levels
-    future_levels = list(mongo_db.future_levels.find({}).sort("position", 1))
-    
-    return render_template('future.html', levels=future_levels)
+    return render_template('future.html', levels=get_future_levels_light())
 
 @app.route('/future/<int:level_id>')
 def future_level_details(level_id):
@@ -11929,12 +12226,15 @@ def future_level_details(level_id):
         return render_template('future_disabled.html')
     
     # Get the specific future level
-    level = mongo_db.future_levels.find_one({"_id": level_id})
+    level = mongo_db.future_levels.find_one({"_id": level_id}, {"thumbnail_data": 0})
     if not level:
         flash('Future level not found', 'danger')
         return redirect(url_for('future_list'))
     
-    return render_template('future_level_details.html', level=level)
+    # Get approved runs for this level
+    runs = level.get('runs', [])
+    
+    return render_template('future_level_details.html', level=level, runs=runs)
 
 @app.route('/admin/announcements', methods=['GET', 'POST'])
 def admin_announcements():
@@ -13758,11 +14058,11 @@ def recent_tab_roulette():
                     if percentage > required_percentage:
                         # Smart skip: if they got 8% when 2% was needed, skip to level 9
                         next_level_num = percentage + 1
-                        flash(f'🚀 Amazing! You got {percentage}% (needed {required_percentage}%), skipping ahead to level {next_level_num}!', 'success')
+                        flash(f' You got {percentage}% (needed {required_percentage}%), skipping ahead to level {next_level_num}!', 'success')
                     else:
                         # Normal progression
                         next_level_num = current_session['current_level'] + 1
-                        flash(f'🎉 Perfect! You got exactly {percentage}%, moving to level {next_level_num}!', 'success')
+                        flash(f'You got exactly {percentage}%, moving to level {next_level_num}!', 'success')
                     
                     # Check if they reached 100% - complete the challenge
                     if percentage >= 100:

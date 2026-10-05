@@ -136,13 +136,13 @@
         <div class="col-lg-6 mb-4">
             <div class="card">
                 <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0">🚀 Feature Controls</h5>
+                    <h5 class="mb-0"> Feature Controls</h5>
                 </div>
                 <div class="card-body">
                     {% set future_enabled = site_settings.future_list_enabled %}
 
                     <div class="mb-3">
-                        <h6>🔮 Future List</h6>
+                        <h6>Future List</h6>
                         <p class="text-muted small">Enable/disable the Future Recent Tab List feature</p>
 
                         {% if future_enabled %}
@@ -163,7 +163,7 @@
                         </div>
                         <form method="POST" action="{{ url_for('admin_toggle_future_list') }}">
                             <input type="hidden" name="action" value="enable">
-                            <button type="submit" class="btn btn-success w-100">🚀 Enable Future List</button>
+                            <button type="submit" class="btn btn-success w-100"> Enable Future List</button>
                         </form>
                         {% endif %}
                     </div>
@@ -281,7 +281,7 @@
                         </a>
 
                         <a href="/virtual" class="btn btn-secondary">
-                            🚀 Virtual List View
+                             Virtual List View
                         </a>
 
                         <a href="/test_speed" class="btn btn-success">

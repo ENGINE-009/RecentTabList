@@ -33,7 +33,7 @@
             <div class="card bg-success text-white">
                 <div class="card-body text-center">
                     <h2 class="display-4">{{ stats.future_levels }}</h2>
-                    <p class="mb-0">🚀 Future Levels</p>
+                    <p class="mb-0"> Future Levels</p>
                 </div>
             </div>
         </div>
@@ -213,8 +213,8 @@
                         <a href="{{ url_for('admin_levels') }}" class="btn btn-primary">
                             🏆 Manage Main Levels
                         </a>
-                        <a href="{{ url_for('admin_future_levels') }}" class="btn btn-success">
-                            🚀 Manage Future Levels
+                        <a href="{{ url_for('admin_levels', filter='future') }}" class="btn btn-success">
+                             Manage Future Levels
                         </a>
                         <a href="{{ url_for('admin_announcements') }}" class="btn btn-warning">
                             📢 Manage Announcements

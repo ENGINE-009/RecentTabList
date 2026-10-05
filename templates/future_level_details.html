@@ -9,7 +9,7 @@
             <!-- Level Info Card -->
             <div class="card mb-4">
                 <div class="card-header bg-info text-white">
-                    <h3 class="mb-0">🚀 {{ level.name }}</h3>
+                    <h3 class="mb-0"> {{ level.name }}</h3>
                     <small>Future Level #{{ level.position }}</small>
                 </div>
                 <div class="card-body">
@@ -18,7 +18,6 @@
                             <p><strong>Creator:</strong> {{ level.creator }}</p>
                             <p><strong>Verifier:</strong> {{ level.verifier }}</p>
                             <p><strong>Difficulty:</strong> {{ get_difficulty_text(level.get('difficulty', 5.0)) }}</p>
-                            <p><strong>Points:</strong> {{ level.points }}</p>
                         </div>
                         <div class="col-md-6">
                             {% if level.level_id %}
@@ -73,6 +72,45 @@
                 </div>
             </div>
             {% endif %}
+
+            <!-- Future Level Runs -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"> Runs</h5>
+                </div>
+                <div class="card-body">
+                    {% if runs %}
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Progress</th>
+                                    <th>Video</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for run in runs %}
+                                <tr>
+                                    <td><strong>{{ run.username }}</strong></td>
+                                    <td><span class="badge bg-info">{{ run.progress }}%</span></td>
+                                    <td>
+                                        {% if run.video_url %}
+                                        <a href="{{ run.video_url }}" target="_blank" class="btn btn-sm btn-outline-primary">🎥 Watch</a>
+                                        {% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ run.date_submitted.strftime('%Y-%m-%d') }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No runs submitted yet. Be the first!</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <div class="col-md-4">
@@ -83,7 +121,7 @@
                 </div>
                 <div class="card-body text-center">
                     <div class="alert alert-info">
-                        <h6>🚀 Future Level</h6>
+                        <h6> Future Level</h6>
                         <p class="mb-0">This level is planned for future addition to the main list.</p>
                     </div>
                     

@@ -3,6 +3,7 @@
 {% block title %}Manage Levels - Admin - Geometry Dash Demon List{% endblock %}
 
 {% block content %}
+{% set is_future = list_filter == 'future' %}
 <div class="row mb-4">
     <div class="col-12">
         <div class="card shadow-sm">
@@ -15,21 +16,24 @@
                         </button>
                     </form>
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLevelModal">
-                        <i class="fas fa-plus"></i> Add New Level
+                        <i class="fas fa-plus"></i> {{ 'Add Future Level' if is_future else 'Add New Level' }}
                     </button>
                 </div>
             </div>
             <div class="card-body p-0">
                 <ul class="nav nav-tabs" id="levelTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link {% if not is_legacy_filter %}active{% endif %}" href="{{ url_for('admin_levels') }}" role="tab">Main List</a>
+                        <a class="nav-link {% if list_filter == 'main' %}active{% endif %}" href="{{ url_for('admin_levels') }}" role="tab">Main List</a>
                     </li>
                     <li class="nav-item" role="presentation">
                         <a class="nav-link {% if is_legacy_filter %}active{% endif %}" href="{{ url_for('admin_levels', filter='legacy') }}" role="tab">Legacy List</a>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {% if is_future %}active{% endif %}" href="{{ url_for('admin_levels', filter='future') }}" role="tab">Future List</a>
+                    </li>
                 </ul>
                 <div class="tab-content" id="levelTabsContent">
-                    <div class="tab-pane fade {% if not is_legacy_filter %}show active{% endif %}" id="main" role="tabpanel" aria-labelledby="main-tab">
+                    <div class="tab-pane fade {% if list_filter == 'main' %}show active{% endif %}" id="main" role="tabpanel" aria-labelledby="main-tab">
                         <div class="table-responsive">
                             <table class="table table-striped table-hover mb-0">
                                 <thead class="table-dark">
@@ -152,6 +156,61 @@
                                         </tr>
                                     {% endif %}
                                 </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade {% if is_future %}show active{% endif %}" id="future" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Name</th>
+                                        <th>Creator</th>
+                                        <th>Verifier</th>
+                                        <th>Difficulty</th>
+                                        <th>Thumbnail</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="futureListBody">
+                                    {% for level in future_levels %}
+                                    <tr>
+                                        <td>{{ level.position }}</td>
+                                        <td>{{ level.name }}</td>
+                                        <td>{{ level.creator }}</td>
+                                        <td>{{ level.verifier }}</td>
+                                        <td>{{ level.difficulty }}/10</td>
+                                        <td>
+                                            {% if level.has_uploaded_thumbnail %}Uploaded image
+                                            {% elif level.thumbnail_url %}Custom URL
+                                            {% else %}Auto (YouTube){% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editLevelModal"
+                                                        data-level-id="{{ level._id }}" data-level-name="{{ level.name }}"
+                                                        data-level-creator="{{ level.creator }}" data-level-verifier="{{ level.verifier }}"
+                                                        data-level-difficulty="{{ level.difficulty }}" data-level-position="{{ level.position }}"
+                                                        data-level-video="{{ level.video_url or '' }}" data-level-description="{{ level.description or '' }}"
+                                                        data-level-game-id="{{ level.level_id or '' }}" data-level-points=""
+                                                        data-level-thumbnail="{{ level.thumbnail_url or '' }}"
+                                                        data-level-has-uploaded="{{ 'true' if level.has_uploaded_thumbnail else 'false' }}"
+                                                        data-level-min-percentage="100" data-demon-type=""
+                                                        data-level-duration="">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-danger ms-1" data-bs-toggle="modal" data-bs-target="#deleteLevelModal" data-level-game-id="{{ level._id }}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center py-3">No levels in the future list yet. Use "Add Future Level" to add one.</td>
+                                    </tr>
+                                    {% endfor %}
                                 </tbody>
                             </table>
                         </div>
@@ -167,10 +226,10 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="addLevelModalLabel">Add New Level</h5>
+                <h5 class="modal-title" id="addLevelModalLabel">{{ 'Add Future Level' if is_future else 'Add New Level' }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('admin_add_level') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('admin_add_future_level') if is_future else url_for('admin_add_level') }}" enctype="multipart/form-data">
                 <input type="hidden" name="level_type" value="Level">
                 <div class="modal-body">
                     <div class="row">
@@ -184,8 +243,8 @@
                                 <input type="text" class="form-control" id="creator" name="creator" required>
                             </div>
                             <div class="mb-3">
-                                <label for="verifier" class="form-label">Verifier</label>
-                                <input type="text" class="form-control" id="verifier" name="verifier" required>
+                                <label for="verifier" class="form-label">Verifier{{ ' (Optional - not verified yet)' if is_future }}</label>
+                                <input type="text" class="form-control" id="verifier" name="verifier" {{ '' if is_future else 'required' }}>
                             </div>
                             <div class="mb-3">
                                 <label for="level_id" class="form-label">Level ID (Optional)</label>
@@ -197,23 +256,17 @@
                                 <label for="difficulty" class="form-label">Difficulty Rating (1-10)</label>
                                 <input type="number" class="form-control" id="difficulty" name="difficulty" min="1" max="10" step="0.1" required>
                             </div>
-                            <div class="mb-3" id="demon_type_group" style="display: none;">
-                                <label for="demon_type" class="form-label">Demon Difficulty (Hidden - No longer used)</label>
-                                <select class="form-select" id="demon_type" name="demon_type" disabled>
-                                    <option value="">Demon subcategories removed</option>
-                                </select>
-                                <small class="form-text text-muted">Demon subcategories have been removed as requested</small>
                             </div>
                             <div class="mb-3">
                                 <label for="position" class="form-label">Position in List</label>
-                                <input type="number" class="form-control" id="position" name="position" min="1" required>
+                                <input type="number" class="form-control" id="position" name="position" min="1" {% if is_future %}value="{{ (future_levels|length) + 1 }}"{% endif %} required>
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-3 {{ 'd-none' if is_future }}">
                                 <label for="points" class="form-label">Points (leave empty for auto-calculation)</label>
                                 <input type="number" class="form-control" id="points" name="points" min="0" step="0.01">
                                 <small class="form-text text-muted">If left empty, points will be calculated based on position</small>
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-3 {{ 'd-none' if is_future }}">
                                 <label for="min_percentage" class="form-label">Minimum Percentage for Points</label>
                                 <input type="number" class="form-control" id="min_percentage" name="min_percentage" min="1" max="100" value="100">
                                 <small class="form-text text-muted">Players must achieve at least this percentage for points</small>
@@ -265,7 +318,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="mb-3 form-check">
+                            <div class="mb-3 form-check {{ 'd-none' if is_future }}">
                                 <input type="checkbox" class="form-check-input" id="is_legacy" name="is_legacy">
                                 <label class="form-check-label" for="is_legacy">Add to Legacy List</label>
                             </div>
@@ -290,10 +343,10 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="editLevelModalLabel">Edit Level</h5>
+                <h5 class="modal-title" id="editLevelModalLabel">{{ 'Edit Future Level' if is_future else 'Edit Level' }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('admin_edit_level') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('admin_edit_future_level') if is_future else url_for('admin_edit_level') }}" enctype="multipart/form-data">
                 <input type="hidden" id="edit_level_id" name="level_id">
                 <input type="hidden" name="level_type" value="Level">
                 <div class="modal-body">
@@ -308,14 +361,14 @@
                                 <input type="text" class="form-control" id="edit_creator" name="creator" required>
                             </div>
                             <div class="mb-3">
-                                <label for="edit_verifier" class="form-label">Verifier</label>
-                                <input type="text" class="form-control" id="edit_verifier" name="verifier" required>
+                                <label for="edit_verifier" class="form-label">Verifier{{ ' (Optional - not verified yet)' if is_future }}</label>
+                                <input type="text" class="form-control" id="edit_verifier" name="verifier" {{ '' if is_future else 'required' }}>
                             </div>
                             <div class="mb-3">
                                 <label for="edit_game_level_id" class="form-label">Level ID (Optional)</label>
                                 <input type="text" class="form-control" id="edit_game_level_id" name="game_level_id" placeholder="Enter Geometry Dash level ID">
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-3 {{ 'd-none' if is_future }}">
                                 <label for="edit_duration" class="form-label">Duration (m:ss)</label>
                                 <input type="text" class="form-control" id="edit_duration" name="duration" placeholder="e.g. 2:47" pattern="^\d+:[0-5]\d$">
                                 <small class="form-text text-muted">Leave blank to clear. Format: minutes:seconds</small>
@@ -326,23 +379,17 @@
                                 <label for="edit_difficulty" class="form-label">Difficulty Rating (1-10)</label>
                                 <input type="number" class="form-control" id="edit_difficulty" name="difficulty" min="1" max="10" step="0.1" required>
                             </div>
-                            <div class="mb-3" id="edit_demon_type_group" style="display: none;">
-                                <label for="edit_demon_type" class="form-label">Demon Difficulty (Hidden - No longer used)</label>
-                                <select class="form-select" id="edit_demon_type" name="demon_type" disabled>
-                                    <option value="">Demon subcategories removed</option>
-                                </select>
-                                <small class="form-text text-muted">Demon subcategories have been removed as requested</small>
                             </div>
                             <div class="mb-3">
                                 <label for="edit_position" class="form-label">Position in List</label>
                                 <input type="number" class="form-control" id="edit_position" name="position" min="1" required>
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-3 {{ 'd-none' if is_future }}">
                                 <label for="edit_points" class="form-label">Points (leave empty for auto-calculation)</label>
                                 <input type="number" class="form-control" id="edit_points" name="points" min="0" step="0.01">
                                 <small class="form-text text-muted">If left empty, points will be calculated based on position</small>
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-3 {{ 'd-none' if is_future }}">
                                 <label for="edit_min_percentage" class="form-label">Minimum Percentage for Points</label>
                                 <input type="number" class="form-control" id="edit_min_percentage" name="min_percentage" min="1" max="100">
                                 <small class="form-text text-muted">Players must achieve at least this percentage for points</small>
@@ -485,11 +532,11 @@
                 <h5 class="modal-title" id="deleteLevelModalLabel">Delete Level</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('admin_delete_level') }}">
+            <form method="POST" action="{{ url_for('admin_delete_future_level') if is_future else url_for('admin_delete_level') }}">
                 <input type="hidden" id="delete_level_id" name="level_id">
                 <div class="modal-body">
                     <p>Are you sure you want to delete this level?</p>
-                    <p class="text-danger"><strong>Warning:</strong> This action cannot be undone and will also delete all associated records.</p>
+                    <p class="text-danger"><strong>Warning:</strong> This action cannot be undone{{ '.' if is_future else ' and will also delete all associated records.' }}</p>
                     
                     <div class="mt-3">
                         <label for="removal_reason" class="form-label">Removal Reason (Optional)</label>

@@ -1,5 +1,5 @@
 @echo off
-echo 🚀 Starting RTL Server with All Updates...
+echo  Starting RTL Server with All Updates...
 echo.
 echo New Features Available:
 echo - Fixed images (no more Image Error)

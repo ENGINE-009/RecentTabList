@@ -1792,7 +1792,7 @@ def quick_fix_urls():
             else:
                 results.append(f"❌ Level '{fix['name']}' not found")
         
-        html = "<h2>🚀 Quick URL Fix Results</h2><ul>"
+        html = "<h2> Quick URL Fix Results</h2><ul>"
         for result in results:
             html += f"<li>{result}</li>"
         html += "</ul>"
@@ -3861,7 +3861,6 @@ def admin_add_level():
             "verifier": verifier,
             "position": position,
             "difficulty": difficulty,
-            "demon_type": None,  # Demon subcategories removed
             "points": points,
             "video_url": video_url,
             "level_id": int(level_id) if level_id and level_id.strip() else None,
@@ -5274,7 +5273,7 @@ def virtual_list():
         </style>
     </head>
     <body>
-        <h1>🚀 RTL - Virtual List (Ultra Fast)</h1>
+        <h1> RTL - Virtual List (Ultra Fast)</h1>
         <p>Showing {len(main_list)} levels with virtual scrolling</p>
         <p><a href="/">← Back to paginated view</a></p>
         
@@ -5370,7 +5369,7 @@ def instant_load():
             <p>Load time: {end_time - start_time:.3f} seconds</p>
             <p>Main levels: {len(main_levels)} | Legacy: {len(legacy_levels)}</p>
             <br>
-            <a href="/" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 18px;">🚀 Go to Main List</a>
+            <a href="/" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 18px;"> Go to Main List</a>
             <br><br>
             <a href="/legacy">View Legacy List</a>
         </div>
@@ -5441,7 +5440,7 @@ def load_images():
             <p>Load time: {end_time - start_time:.3f} seconds</p>
             <p>Updated {len(main_levels)} main + {len(legacy_levels)} legacy levels</p>
             <br>
-            <a href="/" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 18px;">🚀 View Main List</a>
+            <a href="/" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 18px;"> View Main List</a>
             <br><br>
             <a href="/legacy">View Legacy List</a>
         </div>
@@ -7609,21 +7608,12 @@ def admin_dashboard():
     
     return render_template('admin/dashboard.html', stats=stats)
 
-@app.route('/admin/profanity')
-def admin_profanity():
-    """Profanity filter management"""
-    if 'user_id' not in session or not session.get('is_admin'):
-        flash('Access denied. Admin privileges required.', 'danger')
-        return redirect(url_for('index'))
+
     
     word_lists = profanity_filter.get_word_lists()
     return render_template('admin/profanity.html', word_lists=word_lists)
 
-@app.route('/admin/profanity/add', methods=['POST'])
-def admin_add_profanity_word():
-    """Add word to profanity filter"""
-    if 'user_id' not in session or not session.get('is_admin'):
-        return {'error': 'Access denied'}, 403
+
     
     word = request.form.get('word', '').strip().lower()
     severity = request.form.get('severity', 'strong')
@@ -7640,11 +7630,7 @@ def admin_add_profanity_word():
     
     return redirect(url_for('admin_profanity'))
 
-@app.route('/admin/profanity/remove', methods=['POST'])
-def admin_remove_profanity_word():
-    """Remove word from profanity filter"""
-    if 'user_id' not in session or not session.get('is_admin'):
-        return {'error': 'Access denied'}, 403
+
     
     word = request.form.get('word', '').strip().lower()
     
@@ -7660,11 +7646,7 @@ def admin_remove_profanity_word():
     
     return redirect(url_for('admin_profanity'))
 
-@app.route('/admin/profanity/test', methods=['POST'])
-def admin_test_profanity():
-    """Test profanity filter"""
-    if 'user_id' not in session or not session.get('is_admin'):
-        return {'error': 'Access denied'}, 403
+
     
     test_text = request.form.get('test_text', '').strip()
     test_type = request.form.get('test_type', 'username')
@@ -7695,9 +7677,6 @@ def admin_news():
         flash('Access denied - Admin only', 'danger')
         return redirect(url_for('index'))
     
-    # For now, redirect to admin dashboard since news system is not implemented
-    flash('News management system is not yet implemented', 'info')
-    return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/news/create')
 def admin_create_news():
@@ -10033,7 +10012,6 @@ def admin_edit_level():
     difficulty = float(request.form.get('difficulty'))
     # Note: Demon type requirement removed - now using text-based difficulties
     # demon_type = request.form.get('demon_type', '').strip() if difficulty == 10 else None
-    demon_type = None  # Demon subcategories removed
 
     
     level = mongo_db.levels.find_one({"_id": db_level_id})
@@ -11189,7 +11167,7 @@ def admin_toggle_future_list():
                 upsert=True
             )
             log_admin_action(admin_username, "Future List Enabled", "Enabled the Future List feature")
-            flash('Future List enabled! 🚀', 'success')
+            flash('Future List enabled! ', 'success')
         elif action == 'disable':
             mongo_db.site_settings.update_one(
                 {"_id": "main"},
@@ -13613,11 +13591,11 @@ def recent_tab_roulette():
                     if percentage > required_percentage:
                         # Smart skip: if they got 8% when 2% was needed, skip to level 9
                         next_level_num = percentage + 1
-                        flash(f'🚀 Amazing! You got {percentage}% (needed {required_percentage}%), skipping ahead to level {next_level_num}!', 'success')
+                        flash(f' Amazing! You got {percentage}% (needed {required_percentage}%), skipping ahead to level {next_level_num}!', 'success')
                     else:
                         # Normal progression
                         next_level_num = current_session['current_level'] + 1
-                        flash(f'🎉 Perfect! You got exactly {percentage}%, moving to level {next_level_num}!', 'success')
+                        flash(f'You got exactly {percentage}%, moving to level {next_level_num}!', 'success')
                     
                     # Check if they reached 100% - complete the challenge
                     if percentage >= 100:

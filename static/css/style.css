@@ -925,7 +925,7 @@ body, .card, .navbar, .btn, .form-control, .form-select, .dropdown-menu, .alert,
     }
 }
 
-/* GD Cube Particles */
+/* GD Cube Particles
 .gd-cube {
     position: fixed;
     pointer-events: auto;
@@ -1023,7 +1023,7 @@ body, .card, .navbar, .btn, .form-control, .form-select, .dropdown-menu, .alert,
         0 0 50px rgba(160, 160, 160, 0.6);
     animation: gdOrbFloatUp 20s linear infinite;
     cursor: pointer;
-}
+} */
 
 .gd-orb::before {
     content: '';
@@ -1311,67 +1311,6 @@ body, .card, .navbar, .btn, .form-control, .form-select, .dropdown-menu, .alert,
 }
 
 /* Animated background with moving gradients */
-/* RobTop Face Icon */
-.gd-icon {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(45deg, 
-        #ff8f00 0%, 
-        #ffb74d 25%,
-        #ff9800 50%,
-        #ef6c00 75%,
-        #ff8f00 100%);
-    border: 3px solid #fff;
-    border-radius: 50%;
-    box-shadow: 
-        0 0 20px rgba(255, 152, 0, 0.8),
-        inset 0 0 10px rgba(255, 255, 255, 0.3),
-        0 0 40px rgba(255, 152, 0, 0.4);
-    cursor: pointer;
-    z-index: 1000;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-.gd-icon:hover {
-    transform: scale(1.1);
-    box-shadow: 
-        0 0 30px rgba(255, 152, 0, 1.0),
-        inset 0 0 15px rgba(255, 255, 255, 0.4),
-        0 0 50px rgba(255, 152, 0, 0.6);
-}
-
-/* RobTop's Eyes */
-.gd-icon::before {
-    content: '';
-    position: absolute;
-    top: 20px;
-    left: 18px;
-    width: 8px;
-    height: 8px;
-    background: #000;
-    border-radius: 50%;
-    box-shadow: 16px 0 0 #000; /* Right eye */
-}
-
-/* RobTop's Smile */
-.gd-icon::after {
-    content: '';
-    position: absolute;
-    top: 35px;
-    left: 20px;
-    width: 20px;
-    height: 10px;
-    border: 2px solid #000;
-    border-top: none;
-    border-radius: 0 0 20px 20px;
-}
 
 /* Settings page improvements */
 .card.h-100 {

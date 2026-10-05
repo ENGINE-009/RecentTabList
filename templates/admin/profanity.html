@@ -231,9 +231,9 @@ document.getElementById('testForm').addEventListener('submit', function(e) {
     formData.append('test_text', testText);
     formData.append('test_type', testType);
     
-    fetch('/admin/profanity/test', {
-        method: 'POST',
-        body: formData
+    // fetch('/admin/profanity/test', {
+    //     method: 'POST',
+    //     body: formData
     })
     .then(response => response.json())
     .then(data => {
