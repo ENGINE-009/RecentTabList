@@ -9,7 +9,7 @@
     --danger-color: #ef4444;
     --warning-color: #f59e0b;
     --info-color: #06b6d4;
-    --background-color: #ffffff;
+    --background-color: #edeef3;
     --surface-color: #f8fafc;
     --card-color: #ffffff;
     --text-primary: #1e293b;
@@ -700,7 +700,7 @@ p {
     --danger-color: #ef4444;
     --warning-color: #f59e0b;
     --info-color: #06b6d4;
-    --background-color: #ffffff;
+    --background-color: #edeef3;
     --surface-color: #f8fafc;
     --card-color: #ffffff;
     --text-primary: #1e293b;
@@ -1537,11 +1537,13 @@ body, .card, .navbar, .btn, .form-control, .form-select, .dropdown-menu, .alert,
 }
 
 .card-body.level-list .level-card {
-    border: 1px dashed var(--border-color);
+    border-style: dashed;
+    border-width: 2px !important;
+    border-color: color-mix(in srgb, var(--border-color) 60%, var(--text-secondary)) !important;
     margin-bottom: 0 !important;
     box-shadow: var(--shadow-sm);
 }
 
 .card-body.level-list .level-card:hover {
-    border-color: var(--primary-color);
+    border-color: var(--primary-color) !important;
 }
