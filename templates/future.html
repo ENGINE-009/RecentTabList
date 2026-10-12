@@ -8,9 +8,7 @@
         <div class="col-12">
             <div class="text-center mb-4">
                 <h1 class="display-4"> Future Recent Tab List</h1>
-                <p class="lead text-muted">A glimpse into the future of RTL</p>
                 <div class="alert alert-info">
-                    <strong> </strong> These levels are planned for future updates to the main list once the levels get verified.
                 </div>
             </div>
         </div>
@@ -19,13 +17,13 @@
     {% if levels %}
     <div class="row">
         <div class="col-lg-8 mx-auto">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm level-list-card">
                 <div class="card-header bg-gradient" style="background: linear-gradient(45deg, #667eea 0%, #764ba2 100%); color: white;">
                     <h4 class="mb-0">Future Levels ({{ levels|length }})</h4>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-0 level-list">
                     {% for level in levels %}
-                    <div class="d-flex align-items-center p-3 border-bottom level-card" 
+                    <div class="d-flex align-items-center p-3 level-card" 
                          style="background: linear-gradient(90deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); cursor: pointer; transition: all 0.2s ease;"
                          onclick="window.location.href='{{ url_for('future_level_details', level_id=level._id) }}';"
                          onmouseover="this.style.background='linear-gradient(90deg, rgba(102,126,234,0.2) 0%, rgba(118,75,162,0.2) 100%)'"

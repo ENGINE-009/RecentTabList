@@ -28,7 +28,7 @@
 
 <div class="row">
     <div class="col-lg-8">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm level-list-card">
             <div class="card-header bg-primary text-white">
                 <div class="row align-items-center">
                     <div class="col-md-6">
@@ -46,7 +46,7 @@
                     </div>
                 </div>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body p-0 level-list">
                 {% for level in levels %}
                 <div class="d-flex align-items-start p-3 level-card" data-level-id="{{ level.get('_id', '') }}" style="cursor: pointer; transition: all 0.2s ease;">
                     <div class="me-4">
@@ -636,7 +636,7 @@
                             const stars = '⭐'.repeat(Math.round(difficulty));
                             
                             levelsHTML += `
-<div class="d-flex align-items-center p-3 border-bottom level-card mb-4" data-level-id="${level._id || level.level_id}" style="cursor: pointer; transition: all 0.2s ease;">
+<div class="d-flex align-items-center p-3 level-card" data-level-id="${level._id || level.level_id}" style="cursor: pointer; transition: all 0.2s ease;">
     <div class="me-4">
         <div class="position-relative">
                             `;

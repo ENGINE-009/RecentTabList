@@ -561,21 +561,21 @@ p {
 
 /* Dark Theme */
 [data-bs-theme="dark"] {
-    --primary-color: #4a8ac4;
-    --primary-hover: #2d6aa0;
-    --secondary-color: #4a5568;
-    --success-color: #2a9e78;
-    --danger-color: #c45a5a;
-    --warning-color: #b8962a;
-    --info-color: #1a9db5;
-    --background-color: #090e18;
-    --surface-color: #141c28;
-    --card-color: #141c28;
-    --text-primary: #d0d8e4;
-    --text-secondary: #8a9ab0;
-    --text-muted: #4a5568;
-    --border-color: #222e3f;
-    --border-light: #2e3d52;
+    --primary-color: #6289ac;
+    --primary-hover: #446989;
+    --secondary-color: #505762;
+    --success-color: #418770;
+    --danger-color: #af6f6f;
+    --warning-color: #9c8746;
+    --info-color: #398896;
+    --background-color: #0c0f15;
+    --surface-color: #181d24;
+    --card-color: #181d24;
+    --text-primary: #d4d9e0;
+    --text-secondary: #929ba8;
+    --text-muted: #505762;
+    --border-color: #282f39;
+    --border-light: #353e4b;
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
@@ -1510,4 +1510,38 @@ body, .card, .navbar, .btn, .form-control, .form-select, .dropdown-menu, .alert,
     background-color: #773dcf !important;
     border-color: #773dcf !important;
     color: white !important;
+}
+
+/* Level lists: every level is its own card with space between them */
+.card.level-list-card {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.card.level-list-card > .card-header,
+.card.level-list-card > .card-footer {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md) !important;
+}
+
+.card.level-list-card > .card-footer {
+    background-color: var(--card-color);
+}
+
+.card-body.level-list {
+    display: flex !important;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 1.25rem 0 !important;
+}
+
+.card-body.level-list .level-card {
+    border: 1px dashed var(--border-color);
+    margin-bottom: 0 !important;
+    box-shadow: var(--shadow-sm);
+}
+
+.card-body.level-list .level-card:hover {
+    border-color: var(--primary-color);
 }

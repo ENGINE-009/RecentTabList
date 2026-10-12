@@ -5,7 +5,7 @@
 {% block content %}
 <div class="row">
     <div class="col-lg-8">
-        <div class="card shadow-sm">
+        <div class="card level-list-card shadow-sm">
             <div class="card-header bg-success text-white">
                 <div class="row align-items-center">
                     <div class="col-md-6">
@@ -23,10 +23,10 @@
                     </div>
                 </div>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body p-0 level-list">
                 {% if levels %}
                     {% for level in levels %}
-                    <div class="d-flex align-items-center p-3 border-bottom level-card mb-4" data-level-id="{{ level._id }}" style="cursor: pointer; transition: all 0.2s ease;">
+                    <div class="d-flex align-items-center p-3 level-card" data-level-id="{{ level._id }}" style="cursor: pointer; transition: all 0.2s ease;">
                         <div class="me-4">
                             <div class="position-relative">
                                 {% set video_url = level.get('video_url', '') %}
