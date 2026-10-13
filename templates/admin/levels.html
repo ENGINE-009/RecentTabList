@@ -223,254 +223,317 @@
     </div>
 </div>
 
-<!-- Add Level Modal -->
+<!-- Add Level Modal - Compact Design -->
 <div class="modal fade" id="addLevelModal" tabindex="-1" aria-labelledby="addLevelModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
+            <div class="modal-header bg-primary text-white py-2">
                 <h5 class="modal-title" id="addLevelModalLabel">{{ 'Add Future Level' if is_future else 'Add New Level' }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm" form="addLevelForm">
+                        Add Level
+                    </button>
+                </div>
             </div>
-            <form method="POST" action="{{ url_for('admin_add_future_level') if is_future else url_for('admin_add_level') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('admin_add_future_level') if is_future else url_for('admin_add_level') }}" enctype="multipart/form-data" id="addLevelForm">
                 <input type="hidden" name="level_type" value="Level">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="name" class="form-label">Level Name</label>
-                                <input type="text" class="form-control" id="name" name="name" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="creator" class="form-label">Creator</label>
-                                <input type="text" class="form-control" id="creator" name="creator" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="verifier" class="form-label">Verifier{{ ' (Optional - not verified yet)' if is_future }}</label>
-                                <input type="text" class="form-control" id="verifier" name="verifier" {{ '' if is_future else 'required' }}>
-                            </div>
-                            <div class="mb-3">
-                                <label for="level_id" class="form-label">Level ID (Optional)</label>
-                                <input type="text" class="form-control" id="level_id" name="level_id">
+                <div class="modal-body p-3">
+                    <!-- Tabbed Interface for Better Organization -->
+                    <ul class="nav nav-tabs nav-fill mb-3" id="addLevelTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="add-basic-tab" data-bs-toggle="tab" data-bs-target="#add-basic-info" type="button" role="tab">
+                                Basic Info
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="add-settings-tab" data-bs-toggle="tab" data-bs-target="#add-level-settings" type="button" role="tab">
+                                Settings
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="add-media-tab" data-bs-toggle="tab" data-bs-target="#add-media-settings" type="button" role="tab">
+                                Media
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="addLevelTabsContent">
+                        <!-- Basic Info Tab -->
+                        <div class="tab-pane fade show active" id="add-basic-info" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="name" class="form-label fw-bold">Level Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="difficulty" class="form-label fw-bold">Difficulty (1-10)</label>
+                                    <input type="number" class="form-control" id="difficulty" name="difficulty" min="1" max="10" step="0.1" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="position" class="form-label fw-bold">Position</label>
+                                    <input type="number" class="form-control" id="position" name="position" min="1" {% if is_future %}value="{{ (future_levels|length) + 1 }}"{% endif %} required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="creator" class="form-label fw-bold">Creator</label>
+                                    <input type="text" class="form-control" id="creator" name="creator" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="verifier" class="form-label fw-bold">Verifier{{ ' (Optional)' if is_future }}</label>
+                                    <input type="text" class="form-control" id="verifier" name="verifier" {{ '' if is_future else 'required' }}>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="level_id" class="form-label fw-bold">Level ID <small class="text-muted">(optional)</small></label>
+                                    <input type="text" class="form-control" id="level_id" name="level_id" placeholder="123456789">
+                                </div>
+                                <div class="col-12">
+                                    <label for="description" class="form-label fw-bold">Description <small class="text-muted">(optional)</small></label>
+                                    <textarea class="form-control" id="description" name="description" rows="2" placeholder="Additional notes about this level..."></textarea>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="difficulty" class="form-label">Difficulty Rating (1-10)</label>
-                                <input type="number" class="form-control" id="difficulty" name="difficulty" min="1" max="10" step="0.1" required>
-                            </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="position" class="form-label">Position in List</label>
-                                <input type="number" class="form-control" id="position" name="position" min="1" {% if is_future %}value="{{ (future_levels|length) + 1 }}"{% endif %} required>
-                            </div>
-                            <div class="mb-3 {{ 'd-none' if is_future }}">
-                                <label for="points" class="form-label">Points (leave empty for auto-calculation)</label>
-                                <input type="number" class="form-control" id="points" name="points" min="0" step="0.01">
-                                <small class="form-text text-muted">If left empty, points will be calculated based on position</small>
-                            </div>
-                            <div class="mb-3">
-                                <label for="min_percentage" class="form-label">{{ 'Minimum Percentage to Submit a Run' if is_future else 'Minimum Percentage for Points' }}</label>
-                                <input type="number" class="form-control" id="min_percentage" name="min_percentage" min="1" max="100" value="{{ 1 if is_future else 100 }}">
-                                <small class="form-text text-muted">{{ 'Players can only submit a run on this level with at least this percentage' if is_future else 'Players must achieve at least this percentage for points' }}</small>
-                            </div>
-                            <div class="mb-3">
-                                <label for="video_url" class="form-label">Video URL</label>
-                                <input type="url" class="form-control" id="video_url" name="video_url" placeholder="YouTube, Streamable, TikTok, or Medal.tv URL">
-                                <small class="form-text text-muted">Supported platforms: YouTube, Streamable, TikTok, Medal</small>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Thumbnail Options</label>
-                                <div class="card">
-                                    <div class="card-body">
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="radio" name="thumbnail_type" id="thumb_auto" value="auto" checked>
-                                            <label class="form-check-label" for="thumb_auto">
-                                                <strong>Auto YouTube Thumbnail</strong> - Extract from video URL
-                                            </label>
-                                        </div>
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="radio" name="thumbnail_type" id="thumb_url" value="url">
-                                            <label class="form-check-label" for="thumb_url">
-                                                <strong>Custom Image URL</strong> - Use specific image
-                                            </label>
-                                        </div>
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="radio" name="thumbnail_type" id="thumb_upload" value="upload">
-                                            <label class="form-check-label" for="thumb_upload">
-                                                <strong>Upload Image</strong> - Upload from computer
-                                            </label>
-                                        </div>
-                                        
-                                        <div id="url_input" style="display: none;">
-                                            <input type="text" class="form-control mb-2" id="thumbnail_url" name="thumbnail_url" placeholder="https://example.com/image.jpg">
-                                        </div>
-                                        
-                                        <div id="upload_input" style="display: none;">
-                                            <input type="file" class="form-control" id="thumbnail_file" name="thumbnail_file" accept="image/*">
-                                            <small class="form-text text-muted">
-                                                Supported formats: JPG, PNG, GIF, WebP (max 5MB)
-                                            </small>
-                                        </div>
-                                        
-                                        <small class="form-text text-muted">
-                                            Auto: Uses YouTube thumbnail if video URL is provided<br>
-                                            Custom URL: Uses your specified image URL<br>
-                                            Upload: Upload image file (JPG, PNG, GIF, WebP - max 5MB)
-                                        </small>
+                        
+                        <!-- Settings Tab -->
+                        <div class="tab-pane fade" id="add-level-settings" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-4 {{ 'd-none' if is_future }}">
+                                    <label for="points" class="form-label fw-bold">Points <small class="text-muted">(auto if empty)</small></label>
+                                    <input type="number" class="form-control" id="points" name="points" min="0" step="0.01" placeholder="Auto-calculated">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="min_percentage" class="form-label fw-bold">Min Percentage</label>
+                                    <input type="number" class="form-control" id="min_percentage" name="min_percentage" min="1" max="100" value="{{ 1 if is_future else 100 }}">
+                                    <small class="form-text text-muted">{{ 'Required % to submit run' if is_future else 'Required % for points' }}</small>
+                                </div>
+                                <div class="col-md-4 {{ 'd-none' if is_future }}">
+                                    <label class="form-label fw-bold">Options</label>
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="is_legacy" name="is_legacy">
+                                        <label class="form-check-label" for="is_legacy">Add to Legacy List</label>
                                     </div>
                                 </div>
                             </div>
-                            <div class="mb-3 form-check {{ 'd-none' if is_future }}">
-                                <input type="checkbox" class="form-check-input" id="is_legacy" name="is_legacy">
-                                <label class="form-check-label" for="is_legacy">Add to Legacy List</label>
+                        </div>
+                        
+                        <!-- Media Tab -->
+                        <div class="tab-pane fade" id="add-media-settings" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="video_url" class="form-label fw-bold">Video URL</label>
+                                    <input type="url" class="form-control" id="video_url" name="video_url" placeholder="https://www.youtube.com/watch?v=...">
+                                    <small class="form-text text-muted">YouTube, Streamable, TikTok, Medal.tv</small>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">Thumbnail Options</label>
+                                    <div class="card bg-light">
+                                        <div class="card-body p-3">
+                                            <div class="row g-2">
+                                                <div class="col-md-4">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="thumbnail_type" id="thumb_auto" value="auto" checked>
+                                                        <label class="form-check-label small" for="thumb_auto">
+                                                            <strong>Auto YouTube</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="thumbnail_type" id="thumb_url" value="url">
+                                                        <label class="form-check-label small" for="thumb_url">
+                                                            <strong>Custom URL</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="thumbnail_type" id="thumb_upload" value="upload">
+                                                        <label class="form-check-label small" for="thumb_upload">
+                                                            <strong>Upload Image</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div id="url_input" class="mt-3" style="display: none;">
+                                                <input type="text" class="form-control" id="thumbnail_url" name="thumbnail_url" placeholder="https://example.com/image.jpg">
+                                            </div>
+                                            
+                                            <div id="upload_input" class="mt-3" style="display: none;">
+                                                <input type="file" class="form-control" id="thumbnail_file" name="thumbnail_file" accept="image/*">
+                                                <small class="form-text text-muted">JPG, PNG, GIF, WebP (max 5MB)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description (Optional)</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Level</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Edit Level Modal -->
+<!-- Edit Level Modal - Compact Design -->
 <div class="modal fade" id="editLevelModal" tabindex="-1" aria-labelledby="editLevelModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
+            <div class="modal-header bg-primary text-white py-2">
                 <h5 class="modal-title" id="editLevelModalLabel">{{ 'Edit Future Level' if is_future else 'Edit Level' }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm" id="edit_save_btn" form="editLevelForm">
+                        <span class="btn-text">Save</span>
+                        <span class="btn-loading" style="display: none;">
+                            Saving...
+                        </span>
+                    </button>
+                </div>
             </div>
-            <form method="POST" action="{{ url_for('admin_edit_future_level') if is_future else url_for('admin_edit_level') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('admin_edit_future_level') if is_future else url_for('admin_edit_level') }}" enctype="multipart/form-data" id="editLevelForm">
                 <input type="hidden" id="edit_level_id" name="level_id">
                 <input type="hidden" name="level_type" value="Level">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="edit_name" class="form-label">Level Name</label>
-                                <input type="text" class="form-control" id="edit_name" name="name" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit_creator" class="form-label">Creator</label>
-                                <input type="text" class="form-control" id="edit_creator" name="creator" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit_verifier" class="form-label">Verifier{{ ' (Optional - not verified yet)' if is_future }}</label>
-                                <input type="text" class="form-control" id="edit_verifier" name="verifier" {{ '' if is_future else 'required' }}>
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit_game_level_id" class="form-label">Level ID (Optional)</label>
-                                <input type="text" class="form-control" id="edit_game_level_id" name="game_level_id" placeholder="Enter Geometry Dash level ID">
-                            </div>
-                            <div class="mb-3 {{ 'd-none' if is_future }}">
-                                <label for="edit_duration" class="form-label">Duration (m:ss)</label>
-                                <input type="text" class="form-control" id="edit_duration" name="duration" placeholder="e.g. 2:47" pattern="^\d+:[0-5]\d$">
-                                <small class="form-text text-muted">Leave blank to clear. Format: minutes:seconds</small>
+                <div class="modal-body p-3">
+                    <!-- Tabbed Interface for Better Organization -->
+                    <ul class="nav nav-tabs nav-fill mb-3" id="editLevelTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-info" type="button" role="tab">
+                                Basic Info
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#level-settings" type="button" role="tab">
+                                Settings
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="media-tab" data-bs-toggle="tab" data-bs-target="#media-settings" type="button" role="tab">
+                                Media
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="editLevelTabsContent">
+                        <!-- Basic Info Tab -->
+                        <div class="tab-pane fade show active" id="basic-info" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="edit_name" class="form-label fw-bold">Level Name</label>
+                                    <input type="text" class="form-control" id="edit_name" name="name" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="edit_difficulty" class="form-label fw-bold">Difficulty (1-10)</label>
+                                    <input type="number" class="form-control" id="edit_difficulty" name="difficulty" min="1" max="10" step="0.1" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="edit_position" class="form-label fw-bold">Position</label>
+                                    <input type="number" class="form-control" id="edit_position" name="position" min="1" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="edit_creator" class="form-label fw-bold">Creator</label>
+                                    <input type="text" class="form-control" id="edit_creator" name="creator" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="edit_verifier" class="form-label fw-bold">Verifier{{ ' (Optional)' if is_future }}</label>
+                                    <input type="text" class="form-control" id="edit_verifier" name="verifier" {{ '' if is_future else 'required' }}>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="edit_game_level_id" class="form-label fw-bold">Level ID <small class="text-muted">(optional)</small></label>
+                                    <input type="text" class="form-control" id="edit_game_level_id" name="game_level_id" placeholder="123456789">
+                                </div>
+                                <div class="col-12">
+                                    <label for="edit_description" class="form-label fw-bold">Description <small class="text-muted">(optional)</small></label>
+                                    <textarea class="form-control" id="edit_description" name="description" rows="2" placeholder="Additional notes about this level..."></textarea>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="edit_difficulty" class="form-label">Difficulty Rating (1-10)</label>
-                                <input type="number" class="form-control" id="edit_difficulty" name="difficulty" min="1" max="10" step="0.1" required>
+                        
+                        <!-- Settings Tab -->
+                        <div class="tab-pane fade" id="level-settings" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-4 {{ 'd-none' if is_future }}">
+                                    <label for="edit_points" class="form-label fw-bold">Points <small class="text-muted">(auto if empty)</small></label>
+                                    <input type="number" class="form-control" id="edit_points" name="points" min="0" step="0.01" placeholder="Auto-calculated">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="edit_min_percentage" class="form-label fw-bold">Min Percentage</label>
+                                    <input type="number" class="form-control" id="edit_min_percentage" name="min_percentage" min="1" max="100">
+                                    <small class="form-text text-muted">{{ 'Required % to submit run' if is_future else 'Required % for points' }}</small>
+                                </div>
+                                <div class="col-md-4 {{ 'd-none' if is_future }}">
+                                    <label for="edit_duration" class="form-label fw-bold">Duration <small class="text-muted">(m:ss)</small></label>
+                                    <input type="text" class="form-control" id="edit_duration" name="duration" placeholder="2:47" pattern="^\d+:[0-5]\d$">
+                                </div>
                             </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit_position" class="form-label">Position in List</label>
-                                <input type="number" class="form-control" id="edit_position" name="position" min="1" required>
-                            </div>
-                            <div class="mb-3 {{ 'd-none' if is_future }}">
-                                <label for="edit_points" class="form-label">Points (leave empty for auto-calculation)</label>
-                                <input type="number" class="form-control" id="edit_points" name="points" min="0" step="0.01">
-                                <small class="form-text text-muted">If left empty, points will be calculated based on position</small>
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit_min_percentage" class="form-label">{{ 'Minimum Percentage to Submit a Run' if is_future else 'Minimum Percentage for Points' }}</label>
-                                <input type="number" class="form-control" id="edit_min_percentage" name="min_percentage" min="1" max="100">
-                                <small class="form-text text-muted">{{ 'Players can only submit a run on this level with at least this percentage' if is_future else 'Players must achieve at least this percentage for points' }}</small>
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit_video_url" class="form-label">Video URL</label>
-                                <input type="url" class="form-control" id="edit_video_url" name="video_url" placeholder="YouTube, Streamable, Vimeo, TikTok, Twitch, or Medal.tv URL">
-                                <small class="form-text text-muted">Supported platforms: YouTube, Streamable, Vimeo, TikTok, Twitch, Medal</small>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Thumbnail Options</label>
-                                <div class="card">
-                                    <div class="card-body">
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="radio" name="thumbnail_type" id="edit_thumb_auto" value="auto">
-                                            <label class="form-check-label" for="edit_thumb_auto">
-                                                <strong>Auto YouTube Thumbnail</strong> - Extract from video URL
-                                            </label>
-                                        </div>
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="radio" name="thumbnail_type" id="edit_thumb_url" value="url">
-                                            <label class="form-check-label" for="edit_thumb_url">
-                                                <strong>Custom Image URL</strong> - Use specific image
-                                            </label>
-                                        </div>
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="radio" name="thumbnail_type" id="edit_thumb_keep_existing" value="keep_existing">
-                                            <label class="form-check-label" for="edit_thumb_keep_existing">
-                                                <strong>Keep Current Image</strong> - Don't change existing thumbnail
-                                            </label>
-                                        </div>
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="radio" name="thumbnail_type" id="edit_thumb_upload" value="upload">
-                                            <label class="form-check-label" for="edit_thumb_upload">
-                                                <strong>Upload Image</strong> - Upload from computer
-                                            </label>
-                                        </div>
-                                        
-                                        <div id="edit_url_input" style="display: none;">
-                                            <input type="text" class="form-control mb-2" id="edit_thumbnail_url" name="thumbnail_url" placeholder="https://example.com/image.jpg">
-                                        </div>
-                                        
-                                        <div id="edit_keep_input" style="display: none;">
-                                            <div class="alert alert-info mb-2">
-                                                <i class="fas fa-info-circle"></i> Current image will be preserved (recommended for uploaded images)
+                        </div>
+                        
+                        <!-- Media Tab -->
+                        <div class="tab-pane fade" id="media-settings" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="edit_video_url" class="form-label fw-bold">Video URL</label>
+                                    <input type="url" class="form-control" id="edit_video_url" name="video_url" placeholder="https://www.youtube.com/watch?v=...">
+                                    <small class="form-text text-muted">YouTube, Streamable, Vimeo, TikTok, Twitch, Medal.tv</small>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">Thumbnail Options</label>
+                                    <div class="card bg-light">
+                                        <div class="card-body p-3">
+                                            <div class="row g-2">
+                                                <div class="col-md-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="thumbnail_type" id="edit_thumb_auto" value="auto">
+                                                        <label class="form-check-label small" for="edit_thumb_auto">
+                                                            <strong>Auto YouTube</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="thumbnail_type" id="edit_thumb_url" value="url">
+                                                        <label class="form-check-label small" for="edit_thumb_url">
+                                                            <strong>Custom URL</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="thumbnail_type" id="edit_thumb_keep_existing" value="keep_existing">
+                                                        <label class="form-check-label small" for="edit_thumb_keep_existing">
+                                                            <strong>Keep Current</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="thumbnail_type" id="edit_thumb_upload" value="upload">
+                                                        <label class="form-check-label small" for="edit_thumb_upload">
+                                                            <strong>Upload Image</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div id="edit_url_input" class="mt-3" style="display: none;">
+                                                <input type="text" class="form-control" id="edit_thumbnail_url" name="thumbnail_url" placeholder="https://example.com/image.jpg">
+                                            </div>
+                                            
+                                            <div id="edit_keep_input" class="mt-3" style="display: none;">
+                                                <div class="alert alert-info mb-0">
+                                                    Current image will be preserved (recommended for uploaded images)
+                                                </div>
+                                            </div>
+                                            
+                                            <div id="edit_upload_input" class="mt-3" style="display: none;">
+                                                <input type="file" class="form-control" id="edit_thumbnail_file" name="thumbnail_file" accept="image/*">
+                                                <small class="form-text text-muted">JPG, PNG, GIF, WebP (max 5MB)</small>
                                             </div>
                                         </div>
-                                        
-                                        <div id="edit_upload_input" style="display: none;">
-                                            <input type="file" class="form-control" id="edit_thumbnail_file" name="thumbnail_file" accept="image/*">
-                                            <small class="form-text text-muted">
-                                                Supported formats: JPG, PNG, GIF, WebP (max 5MB)
-                                            </small>
-                                        </div>
-                                        
-                                        <small class="form-text text-muted">
-                                            Auto: Uses YouTube thumbnail if video URL is provided<br>
-                                            Custom URL: Uses your specified image URL<br>
-                                            Keep Current: Preserves existing image (recommended for base64 images)<br>
-                                            Upload: Upload image file (JPG, PNG, GIF, WebP - max 5MB)
-                                        </small>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="edit_description" class="form-label">Description (Optional)</label>
-                        <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="edit_save_btn">
-                        <span class="btn-text">Save Changes</span>
-                        <span class="btn-loading" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i> Saving...
-                        </span>
-                    </button>
                 </div>
             </form>
         </div>
@@ -574,11 +637,16 @@
         toggleDemonDifficulty(this, document.getElementById('demon_type_group'));
     });
     
-    // Handle thumbnail option changes for edit modal
-    document.querySelectorAll('input[name="thumbnail_type"]').forEach(radio => {
+    // Edit level difficulty change handler
+    document.getElementById('edit_difficulty').addEventListener('input', function() {
+        toggleDemonDifficulty(this, document.getElementById('edit_demon_type_group'));
+    });
+    
+    // Handle thumbnail option changes for Add Level modal
+    document.querySelectorAll('#addLevelModal input[name="thumbnail_type"]').forEach(radio => {
         radio.addEventListener('change', function() {
-            const urlInput = document.getElementById('edit_url_input');
-            const uploadInput = document.getElementById('edit_upload_input');
+            const urlInput = document.getElementById('url_input');
+            const uploadInput = document.getElementById('upload_input');
             
             // Hide all inputs first
             urlInput.style.display = 'none';
@@ -593,9 +661,27 @@
         });
     });
     
-    // Edit level difficulty change handler
-    document.getElementById('edit_difficulty').addEventListener('input', function() {
-        toggleDemonDifficulty(this, document.getElementById('edit_demon_type_group'));
+    // Handle thumbnail option changes for Edit Level modal
+    document.querySelectorAll('#editLevelModal input[name="thumbnail_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const urlInput = document.getElementById('edit_url_input');
+            const keepInput = document.getElementById('edit_keep_input');
+            const uploadInput = document.getElementById('edit_upload_input');
+            
+            // Hide all inputs first
+            urlInput.style.display = 'none';
+            keepInput.style.display = 'none';
+            uploadInput.style.display = 'none';
+            
+            // Show relevant input based on selection
+            if (this.value === 'url') {
+                urlInput.style.display = 'block';
+            } else if (this.value === 'keep_existing') {
+                keepInput.style.display = 'block';
+            } else if (this.value === 'upload') {
+                uploadInput.style.display = 'block';
+            }
+        });
     });
     
     // Populate edit modal with level data
@@ -627,9 +713,18 @@
             document.getElementById('edit_description').value = levelDescription || '';
             document.getElementById('edit_game_level_id').value = levelGameId || '';
             document.getElementById('edit_thumbnail_url').value = levelThumbnail.startsWith('http') ? levelThumbnail : '';
-            document.getElementById('edit_points').value = levelPoints ? parseFloat(levelPoints).toFixed(2) : '';
+            
+            const pointsField = document.getElementById('edit_points');
+            if (pointsField) {
+                pointsField.value = levelPoints ? parseFloat(levelPoints).toFixed(2) : '';
+            }
+            
             document.getElementById('edit_min_percentage').value = levelMinPercentage || '100';
-            document.getElementById('edit_duration').value = levelDuration;
+            
+            const durationField = document.getElementById('edit_duration');
+            if (durationField) {
+                durationField.value = levelDuration;
+            }
 
             // Smart thumbnail type detection and selection
             let selectedThumbnailType = 'auto'; // default
@@ -665,12 +760,33 @@
             }
             
             // Handle demon type
-            if (demonType) {
-                document.getElementById('edit_demon_type').value = demonType;
+            const demonTypeField = document.getElementById('edit_demon_type');
+            if (demonTypeField && demonType) {
+                demonTypeField.value = demonType;
             }
             
             // Show/hide demon difficulty based on current difficulty
-            toggleDemonDifficulty(document.getElementById('edit_difficulty'), document.getElementById('edit_demon_type_group'));
+            const demonTypeGroup = document.getElementById('edit_demon_type_group');
+            if (demonTypeGroup) {
+                toggleDemonDifficulty(document.getElementById('edit_difficulty'), demonTypeGroup);
+            }
+            
+            // Reset to Basic Info tab when modal opens
+            const basicTab = document.getElementById('basic-tab');
+            const basicInfo = document.getElementById('basic-info');
+            if (basicTab && basicInfo) {
+                // Hide all tab panes
+                document.querySelectorAll('#editLevelTabsContent .tab-pane').forEach(pane => {
+                    pane.classList.remove('show', 'active');
+                });
+                // Remove active from all tab buttons
+                document.querySelectorAll('#editLevelTabs .nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+                // Activate basic info tab
+                basicTab.classList.add('active');
+                basicInfo.classList.add('show', 'active');
+            }
         });
     });
     
@@ -698,68 +814,27 @@
         });
     });
     
-    // Handle thumbnail option switching for Add Level modal
-    document.querySelectorAll('input[name="thumbnail_type"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const urlInput = document.getElementById('url_input');
-            const uploadInput = document.getElementById('upload_input');
-            
-            // Hide all inputs first
-            urlInput.style.display = 'none';
-            uploadInput.style.display = 'none';
-            
-            // Show relevant input
-            if (this.value === 'url') {
-                urlInput.style.display = 'block';
-            } else if (this.value === 'upload') {
-                uploadInput.style.display = 'block';
-            }
-        });
-    });
-    
-    // Handle thumbnail option switching for Edit Level modal
-    document.querySelectorAll('input[name="thumbnail_type"]').forEach(radio => {
-        if (radio.id.startsWith('edit_')) {
-            radio.addEventListener('change', function() {
-                const urlInput = document.getElementById('edit_url_input');
-                const keepInput = document.getElementById('edit_keep_input');
-                const uploadInput = document.getElementById('edit_upload_input');
-                
-                // Hide all inputs first
-                urlInput.style.display = 'none';
-                keepInput.style.display = 'none';
-                uploadInput.style.display = 'none';
-                
-                // Show relevant input
-                if (this.value === 'url') {
-                    urlInput.style.display = 'block';
-                } else if (this.value === 'keep_existing') {
-                    keepInput.style.display = 'block';
-                } else if (this.value === 'upload') {
-                    uploadInput.style.display = 'block';
-                }
-            });
-        }
-    });
-    
     // Add loading indicator for form submission
-    document.querySelector('#editLevelModal form').addEventListener('submit', function() {
-        const saveBtn = document.getElementById('edit_save_btn');
-        const btnText = saveBtn.querySelector('.btn-text');
-        const btnLoading = saveBtn.querySelector('.btn-loading');
-        
-        // Show loading state
-        btnText.style.display = 'none';
-        btnLoading.style.display = 'inline';
-        saveBtn.disabled = true;
-        
-        // Prevent double submission
-        setTimeout(() => {
-            saveBtn.disabled = false;
-            btnText.style.display = 'inline';
-            btnLoading.style.display = 'none';
-        }, 5000); // Reset after 5 seconds as fallback
-    });
+    const editForm = document.getElementById('editLevelForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function() {
+            const saveBtn = document.getElementById('edit_save_btn');
+            const btnText = saveBtn.querySelector('.btn-text');
+            const btnLoading = saveBtn.querySelector('.btn-loading');
+            
+            // Show loading state
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            saveBtn.disabled = true;
+            
+            // Prevent double submission
+            setTimeout(() => {
+                saveBtn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }, 5000); // Reset after 5 seconds as fallback
+        });
+    }
     
     // Load legacy levels function
     function loadLegacyLevels() {
@@ -771,10 +846,33 @@
     }
     
     // Auto-load legacy levels when legacy tab is clicked
-    document.getElementById('legacy-tab').addEventListener('click', function() {
-        const placeholder = document.getElementById('legacy-placeholder');
-        if (placeholder) {
-            loadLegacyLevels();
+    const legacyTabLink = document.querySelector('a[href*="filter=legacy"]');
+    if (legacyTabLink) {
+        legacyTabLink.addEventListener('click', function() {
+            const placeholder = document.getElementById('legacy-placeholder');
+            if (placeholder) {
+                loadLegacyLevels();
+            }
+        });
+    }
+    
+    // Reset add modal tabs when modal is opened
+    document.getElementById('addLevelModal').addEventListener('show.bs.modal', function() {
+        // Reset to Basic Info tab
+        const basicTab = document.getElementById('add-basic-tab');
+        const basicInfo = document.getElementById('add-basic-info');
+        if (basicTab && basicInfo) {
+            // Hide all tab panes
+            document.querySelectorAll('#addLevelTabsContent .tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            // Remove active from all tab buttons
+            document.querySelectorAll('#addLevelTabs .nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            // Activate basic info tab
+            basicTab.classList.add('active');
+            basicInfo.classList.add('show', 'active');
         }
     });
 </script>
